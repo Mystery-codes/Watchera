@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "FLIX — Stream Movies & TV Shows",
-  description: "A Netflix-style movie streaming app built with Next.js, shadcn/ui and AOS.",
+  description: "A CineVerse movie streaming app built with Next.js, shadcn/ui and AOS.",
 };
 
 export default function RootLayout({

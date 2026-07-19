@@ -9,6 +9,7 @@ export type Movie = {
   poster: string;
   banner: string;
   trending?: boolean;
+  detailPath?: string;
 };
 
 const poster = (seed: string) => `https://picsum.photos/seed/${seed}/400/600`;
