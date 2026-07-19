@@ -5,6 +5,7 @@ import { Play, Plus, ThumbsUp, X } from "lucide-react";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { MoviePlayer } from "@/components/movie-player";
 
 export function MovieModal({
   movie,
@@ -14,6 +15,9 @@ export function MovieModal({
   onClose: () => void;
 }) {
   if (!movie) return null;
+
+  const playId = movie.detailPath ?? String(movie.id);
+  const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED === "true";
 
   return (
     <div
@@ -32,10 +36,20 @@ export function MovieModal({
           <X className="size-4" />
         </button>
 
-        <div className="relative aspect-video w-full">
-          <Image src={movie.banner} alt={movie.title} fill sizes="768px" className="object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
-        </div>
+        {streamEnabled ? (
+          <MoviePlayer movieId={playId} />
+        ) : (
+          <div className="relative aspect-video w-full">
+            <Image
+              src={movie.banner}
+              alt={movie.title}
+              fill
+              sizes="768px"
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+          </div>
+        )}
 
         <div className="space-y-4 p-6">
           <h1 className="text-3xl font-extrabold">{movie.title}</h1>
@@ -47,7 +61,7 @@ export function MovieModal({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button>
+            <Button disabled={!streamEnabled}>
               <Play className="size-4 fill-white" /> Play
             </Button>
             <Button variant="secondary" size="icon" aria-label="Add to list">
@@ -58,7 +72,16 @@ export function MovieModal({
             </Button>
           </div>
 
-          <p className="text-sm leading-relaxed text-zinc-300">{movie.description}</p>
+          {!streamEnabled && (
+            <p className="rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+              Playback is disabled — set <code>PLEXHD_STREAM_TOKEN</code> in your
+              environment to enable streaming.
+            </p>
+          )}
+
+          <p className="text-sm leading-relaxed text-zinc-300">
+            {movie.description || "No description available."}
+          </p>
 
           <div className="flex flex-wrap gap-2 pt-2">
             {movie.genres.map((g) => (

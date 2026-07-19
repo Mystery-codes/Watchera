@@ -1,5 +1,4 @@
 import { Navbar } from "@/components/navbar";
-import { Hero } from "@/components/hero";
 import { MovieBrowser } from "@/components/movie-browser";
 import { Footer } from "@/components/footer";
 import { movies as mockMovies, rows as mockRows } from "@/lib/movies";
