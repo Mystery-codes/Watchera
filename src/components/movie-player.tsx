@@ -2,10 +2,19 @@
 
 import { useMemo } from "react";
 
-export function MoviePlayer({ detailPath }: { detailPath: string }) {
+export function MoviePlayer({
+  detailPath,
+  type = 1,
+}: {
+  detailPath: string;
+  type?: number;
+}) {
   const src = useMemo(
-    () => `/api/play?detailPath=${encodeURIComponent(detailPath)}`,
-    [detailPath]
+    () =>
+      `/api/play?detailPath=${encodeURIComponent(
+        detailPath
+      )}&type=${encodeURIComponent(type)}`,
+    [detailPath, type]
   );
 
   return (

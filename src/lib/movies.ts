@@ -10,6 +10,8 @@ export type Movie = {
   banner: string;
   trending?: boolean;
   detailPath?: string;
+  // 1 = movie, 2 = series (from the PlexHD API)
+  subjectType?: number;
 };
 
 const poster = (seed: string) => `https://picsum.photos/seed/${seed}/400/600`;

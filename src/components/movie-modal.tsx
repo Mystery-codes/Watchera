@@ -37,7 +37,7 @@ export function MovieModal({
         </button>
 
         {streamEnabled ? (
-          <MoviePlayer detailPath={playId} />
+          <MoviePlayer detailPath={playId} type={movie.subjectType ?? 1} />
         ) : (
           <div className="relative aspect-video w-full">
             <Image

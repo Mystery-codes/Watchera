@@ -49,6 +49,7 @@ function mapItem(item: RankingItem, index: number): Movie {
     poster: item.imageUrl ?? "https://picsum.photos/seed/cineverse/400/600",
     banner: item.imageUrl ?? "https://picsum.photos/seed/cineverse/1600/900",
     detailPath: item.detailPath ?? item.subjectId,
+    subjectType: item.type,
   };
 }
 
@@ -99,6 +100,7 @@ export async function fetchMovieDetails(
       poster: subject.cover?.url ?? "https://picsum.photos/seed/cineverse/400/600",
       banner: subject.cover?.url ?? "https://picsum.photos/seed/cineverse/1600/900",
       detailPath: subject.detailPath ?? subject.subjectId,
+      subjectType: subject.subjectType,
     };
 
     return { movie, source: data.resource?.source ?? "" };
@@ -119,13 +121,17 @@ export type VideoSource = {
 };
 
 export async function fetchVidSource(
-  detailPath: string
+  detailPath: string,
+  isSeries = false
 ): Promise<VideoSource | null> {
+  // Movies use sea=0/eps=0; series need a real season/episode (1/1).
+  const sea = isSeries ? 1 : 0;
+  const eps = isSeries ? 1 : 0;
   try {
     const res = await fetch(
       `${API_URL}/api/stream/vid-source?detailPath=${encodeURIComponent(
         detailPath
-      )}&sea=0&eps=0`,
+      )}&sea=${sea}&eps=${eps}`,
       {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 600 },

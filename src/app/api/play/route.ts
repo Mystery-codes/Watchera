@@ -10,9 +10,12 @@ export async function GET(request: NextRequest) {
   if (!detailPath) {
     return NextResponse.json({ error: "Missing detailPath" }, { status: 400 });
   }
+  // subjectType: 1 = movie, 2 = series. Series need sea=1/eps=1.
+  const type = Number(request.nextUrl.searchParams.get("type") ?? "1");
+  const isSeries = type === 2;
 
   // 1. Resolve the real stream URL via vid-source (uses X-AUTH-KEY).
-  const source = await fetchVidSource(detailPath);
+  const source = await fetchVidSource(detailPath, isSeries);
   if (!source || source.streams.length === 0) {
     return NextResponse.json(
       { error: "No stream available" },
