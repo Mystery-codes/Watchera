@@ -106,3 +106,50 @@ export async function fetchMovieDetails(
     return null;
   }
 }
+
+export type StreamSource = {
+  id: string;
+  quality: number;
+  url: string;
+};
+
+export type VideoSource = {
+  streams: StreamSource[];
+  captions: { id: string; lan: string; lanName: string; url: string }[];
+};
+
+export async function fetchVidSource(
+  detailPath: string
+): Promise<VideoSource | null> {
+  try {
+    const res = await fetch(
+      `${API_URL}/api/stream/vid-source?detailPath=${encodeURIComponent(
+        detailPath
+      )}&sea=0&eps=0`,
+      {
+        headers: { "X-AUTH-KEY": API_KEY },
+        next: { revalidate: 600 },
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const streams: StreamSource[] = (data.stream ?? []).map(
+      (s: { id: string; quality: number; url: string }) => ({
+        id: s.id,
+        quality: s.quality,
+        url: s.url,
+      })
+    );
+    const captions = (data.caption ?? []).map(
+      (c: { id: string; lan: string; lanName: string; url: string }) => ({
+        id: c.id,
+        lan: c.lan,
+        lanName: c.lanName,
+        url: c.url,
+      })
+    );
+    return { streams, captions };
+  } catch {
+    return null;
+  }
+}

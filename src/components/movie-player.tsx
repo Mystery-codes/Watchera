@@ -2,8 +2,11 @@
 
 import { useMemo } from "react";
 
-export function MoviePlayer({ movieId }: { movieId: string | number }) {
-  const src = useMemo(() => `/api/play?id=${encodeURIComponent(movieId)}`, [movieId]);
+export function MoviePlayer({ detailPath }: { detailPath: string }) {
+  const src = useMemo(
+    () => `/api/play?detailPath=${encodeURIComponent(detailPath)}`,
+    [detailPath]
+  );
 
   return (
     <div className="overflow-hidden rounded-lg bg-black">
