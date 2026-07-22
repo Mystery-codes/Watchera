@@ -57,12 +57,12 @@ export function AuthDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {mode === "signin" ? "Sign in to CINEVERSE" : "Create your account"}
+            {mode === "signin" ? "Sign in to Reelax" : "Create your account"}
           </DialogTitle>
           <DialogDescription>
             {mode === "signin"
               ? "Welcome back. Pick up where you left off."
-              : "Join CINEVERSE to build your watchlist."}
+              : "Join Reelax to build your watchlist."}
           </DialogDescription>
         </DialogHeader>
 

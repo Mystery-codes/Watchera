@@ -26,7 +26,7 @@ export function Footer() {
         ))}
       </div>
       <p className="mx-auto mt-8 max-w-7xl text-xs text-muted-foreground">
-        © {new Date().getFullYear()} CINEVERSE. Built as a Netflix-style demo with shadcn/ui, AOS & Next.js. Not affiliated with Netflix.
+        &copy; {new Date().getFullYear()} Reelax. Unlimited movies, TV shows, and more.
       </p>
     </footer>
   );

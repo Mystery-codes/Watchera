@@ -1,11 +1,33 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Play, Info } from "lucide-react";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 
-export function Hero({ movie, onOpen }: { movie: Movie; onOpen: (m: Movie) => void }) {
+export function Hero({
+  movie: initialMovie,
+  onOpen,
+  allMovies,
+}: {
+  movie: Movie;
+  onOpen: (m: Movie) => void;
+  allMovies: Movie[];
+}) {
+  const [movie, setMovie] = useState(initialMovie);
+
+  useEffect(() => {
+    if (!allMovies.length) return;
+    const interval = setInterval(() => {
+      const candidates = allMovies.filter((m) => m.id !== movie.id);
+      const pool = candidates.length ? candidates : allMovies;
+      const next = pool[Math.floor(Math.random() * pool.length)];
+      setMovie(next);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [allMovies, movie.id]);
+
   return (
     <section className="relative h-[85vh] min-h-[520px] w-full">
       <Image

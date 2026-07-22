@@ -9,15 +9,17 @@ import type { Movie } from "@/lib/movies";
 export function MovieBrowser({
   rows,
   heroMovie,
+  allMovies,
 }: {
   rows: { title: string; movies: Movie[] }[];
   heroMovie: Movie;
+  allMovies: Movie[];
 }) {
   const [selected, setSelected] = useState<Movie | null>(null);
 
   return (
     <>
-      <Hero movie={heroMovie} onOpen={setSelected} />
+      <Hero movie={heroMovie} onOpen={setSelected} allMovies={allMovies} />
 
       <div className="relative z-10 -mt-16 space-y-8 pb-8">
         {rows.map((row) => (
@@ -30,7 +32,7 @@ export function MovieBrowser({
         ))}
       </div>
 
-      <MovieModal movie={selected} onClose={() => setSelected(null)} />
+      <MovieModal key={selected?.id ?? "none"} movie={selected} onClose={() => setSelected(null)} />
     </>
   );
 }

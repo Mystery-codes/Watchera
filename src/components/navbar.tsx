@@ -1,17 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search, Bell, Menu, LogOut } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Bell, Menu, LogOut, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { AuthDialog } from "@/components/auth-dialog";
 
-const links = ["Home", "TV Shows", "Movies", "New & Popular", "My List"];
+const links: { label: string; href: string }[] = [
+  { label: "Home", href: "/" },
+  { label: "TV Series", href: "/popular-series" },
+  { label: "Movies", href: "/search?q=Movies" },
+  { label: "Animation", href: "/animation" },
+  { label: "Subscription", href: "#" },
+];
 
 export function Navbar() {
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [user, setUser] = useState<{ email: string } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = searchValue.trim();
+    if (!q) return;
+    setSearchOpen(false);
+    router.push(`/search?q=${encodeURIComponent(q)}`);
+  }
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -47,21 +71,44 @@ export function Navbar() {
       )}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center gap-8 px-4 sm:px-8">
-        <span className="text-2xl font-extrabold tracking-tight text-primary">
-          CINEVERSE
+        <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
+          Reelax
         </span>
         <ul className="hidden items-center gap-6 text-sm text-zinc-300 lg:flex">
           {links.map((l) => (
-            <li
-              key={l}
-              className="cursor-pointer transition-colors hover:text-white"
-            >
-              {l}
+            <li key={l.label} className="cursor-pointer transition-colors hover:text-white">
+              <Link href={l.href}>{l.label}</Link>
             </li>
           ))}
         </ul>
         <div className="ml-auto flex items-center gap-4 text-zinc-300">
-          <Search className="size-5 cursor-pointer hover:text-white" />
+          {searchOpen ? (
+            <form onSubmit={submitSearch} className="flex items-center">
+              <input
+                ref={searchInputRef}
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Search movies..."
+                className="w-36 rounded-full border border-white/30 bg-black/60 px-3 py-1 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-primary sm:w-48"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchValue("");
+                }}
+                className="ml-1 text-zinc-300 hover:text-white"
+                aria-label="Close search"
+              >
+                <X className="size-5" />
+              </button>
+            </form>
+          ) : (
+            <Search
+              className="size-5 cursor-pointer hover:text-white"
+              onClick={() => setSearchOpen(true)}
+            />
+          )}
           <Bell className="size-5 cursor-pointer hover:text-white" />
           <Menu className="size-5 cursor-pointer lg:hidden" />
 

@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Play, Plus, ThumbsUp, X } from "lucide-react";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MoviePlayer } from "@/components/movie-player";
+import { SeasonEpisodePicker } from "@/components/season-episode-picker";
 
 export function MovieModal({
   movie,
@@ -14,10 +16,62 @@ export function MovieModal({
   movie: Movie | null;
   onClose: () => void;
 }) {
+  const [season, setSeason] = useState(1);
+  const [episode, setEpisode] = useState(1);
+  const [seasonsList, setSeasonsList] = useState<
+    { season: number; episodes: number }[]
+  >([]);
+  const [seasonsLoading, setSeasonsLoading] = useState(false);
+
+  const isSeries = movie?.subjectType === 2;
+  const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED === "true";
+
+  useEffect(() => {
+    if (!movie || !isSeries || !movie.detailPath) {
+      setSeasonsList([]);
+      return;
+    }
+    let cancelled = false;
+    setSeasonsLoading(true);
+    setSeasonsList([]);
+    setSeason(1);
+    setEpisode(1);
+    fetch(`/api/episodes?detailPath=${encodeURIComponent(movie.detailPath)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load episodes");
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.seasons?.length) {
+          setSeasonsList(data.seasons);
+          setSeason(data.seasons[0].season);
+          setEpisode(1);
+        }
+      })
+      .catch((err) => {
+        console.error("Episodes fetch error:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setSeasonsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSeries, movie?.detailPath, movie?.id]);
+
+  function handleSeasonChange(s: number) {
+    setSeason(s);
+    setEpisode(1);
+  }
+
+  function handleEpisodeChange(ep: number) {
+    setEpisode(ep);
+  }
+
   if (!movie) return null;
 
   const playId = movie.detailPath ?? String(movie.id);
-  const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED === "true";
 
   return (
     <div
@@ -37,7 +91,12 @@ export function MovieModal({
         </button>
 
         {streamEnabled ? (
-          <MoviePlayer detailPath={playId} type={movie.subjectType ?? 1} />
+          <MoviePlayer
+            detailPath={playId}
+            type={movie.subjectType ?? 1}
+            sea={isSeries ? season : 0}
+            eps={isSeries ? episode : 0}
+          />
         ) : (
           <div className="relative aspect-video w-full">
             <Image
@@ -60,6 +119,24 @@ export function MovieModal({
             <span>{movie.duration}</span>
           </div>
 
+          {isSeries && seasonsLoading && (
+            <p className="text-xs text-muted-foreground">Loading episodes...</p>
+          )}
+
+          {isSeries && !seasonsLoading && seasonsList.length > 0 && (
+            <SeasonEpisodePicker
+              seasons={seasonsList}
+              selectedSeason={season}
+              selectedEpisode={episode}
+              onSeasonChange={handleSeasonChange}
+              onEpisodeChange={handleEpisodeChange}
+            />
+          )}
+
+          {isSeries && !seasonsLoading && seasonsList.length === 0 && (
+            <p className="text-xs text-muted-foreground">Episode info unavailable for this title.</p>
+          )}
+
           <div className="flex flex-wrap items-center gap-3">
             <Button disabled={!streamEnabled}>
               <Play className="size-4 fill-white" /> Play
@@ -74,8 +151,9 @@ export function MovieModal({
 
           {!streamEnabled && (
             <p className="rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-              Playback is disabled — set <code>PLEXHD_STREAM_TOKEN</code> in your
-              environment to enable streaming.
+              Playback is disabled — set{" "}
+              <code>PLEXHD_STREAM_TOKEN</code> in your environment to enable
+              streaming.
             </p>
           )}
 

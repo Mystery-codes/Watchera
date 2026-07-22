@@ -9,12 +9,14 @@ export function MovieCard({
   onOpen,
 }: {
   movie: Movie;
-  onOpen: (m: Movie) => void;
+  onOpen?: (m: Movie) => void;
 }) {
+  const handleClick = () => onOpen?.(movie);
+
   return (
     <button
       data-aos="fade-up"
-      onClick={() => onOpen(movie)}
+      onClick={handleClick}
       className="group relative w-40 shrink-0 overflow-hidden rounded-md transition-transform duration-300 hover:z-10 hover:scale-105 sm:w-48"
     >
       <div className="relative aspect-[2/3] w-full">

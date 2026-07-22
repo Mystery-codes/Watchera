@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchVidSource } from "@/lib/plexhd";
 
 const API_URL = process.env.PLEXHD_API_URL ?? "https://plexhd-server.pages.dev";
-const API_KEY = process.env.PLEXHD_API_KEY ?? "";
 const STREAM_TOKEN = process.env.PLEXHD_STREAM_TOKEN ?? "";
 
 export async function GET(request: NextRequest) {
@@ -13,9 +12,11 @@ export async function GET(request: NextRequest) {
   // subjectType: 1 = movie, 2 = series. Series need sea=1/eps=1.
   const type = Number(request.nextUrl.searchParams.get("type") ?? "1");
   const isSeries = type === 2;
+  const sea = isSeries ? Number(request.nextUrl.searchParams.get("sea") ?? "1") : 0;
+  const eps = isSeries ? Number(request.nextUrl.searchParams.get("eps") ?? "1") : 0;
 
   // 1. Resolve the real stream URL via vid-source (uses X-AUTH-KEY).
-  const source = await fetchVidSource(detailPath, isSeries);
+  const source = await fetchVidSource(detailPath, isSeries, sea, eps);
   if (!source || source.streams.length === 0) {
     return NextResponse.json(
       { error: "No stream available" },
@@ -25,6 +26,10 @@ export async function GET(request: NextRequest) {
 
   // Pick the highest quality stream.
   const best = [...source.streams].sort((a, b) => b.quality - a.quality)[0];
+
+  if (!STREAM_TOKEN) {
+    return NextResponse.json({ error: "Stream token missing" }, { status: 502 });
+  }
 
   // 2. Proxy through streaming-proxy (uses ?token=, not the header).
   const upstream = `${API_URL}/api/stream/streaming-proxy?url=${encodeURIComponent(

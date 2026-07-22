@@ -18,6 +18,21 @@ export const RANKING_IDS = {
   dc: "8981852519202701864",
   kDrama: "4380734070238626200",
   adventure: "7486582804437256712",
+  topBox: "8049887023940913872",
+  disney: "4893929859782771488",
+  tmdbTop250: "6831003342882626360",
+  dreamworks: "6498477964521783328",
+  pixar: "8300357620121175440",
+  shortTv: "7844144696607102784",
+  saDrama: "4307848214843217008",
+  thaiSeries: "1164329479448281992",
+  cDrama: "173752404280836544",
+  turkishDrama: "9193088611682599936",
+  yorubaMovies: "5618472934214884040",
+  nollywood: "8216283712045280",
+  teenRomance: "9139789616411735224",
+  blackExcellence: "8505361996374835640",
+  gangstar: "5475136475249497544",
 } as const;
 
 type RankingItem = {
@@ -122,16 +137,17 @@ export type VideoSource = {
 
 export async function fetchVidSource(
   detailPath: string,
-  isSeries = false
+  isSeries = false,
+  sea = 0,
+  eps = 0
 ): Promise<VideoSource | null> {
-  // Movies use sea=0/eps=0; series need a real season/episode (1/1).
-  const sea = isSeries ? 1 : 0;
-  const eps = isSeries ? 1 : 0;
+  const season = isSeries ? sea : 0;
+  const episode = isSeries ? eps : 0;
   try {
     const res = await fetch(
       `${API_URL}/api/stream/vid-source?detailPath=${encodeURIComponent(
         detailPath
-      )}&sea=${sea}&eps=${eps}`,
+      )}&sea=${season}&eps=${episode}`,
       {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 600 },
