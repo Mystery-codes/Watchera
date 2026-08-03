@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Reelax — Stream Movies & TV Shows",
-  description: "A Reelax movie streaming app built with Next.js, shadcn/ui and AOS.",
+  title: "Watchera — Stream Movies & TV Shows",
+  description: "A Watchera movie streaming app built with Next.js, shadcn/ui and AOS.",
 };
 
 export default function RootLayout({

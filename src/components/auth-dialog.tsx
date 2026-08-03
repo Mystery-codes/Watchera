@@ -100,12 +100,12 @@ export function AuthDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {mode === "signin" ? "Sign in to Reelax" : "Create your account"}
+            {mode === "signin" ? "Sign in to Watchera" : "Create your account"}
           </DialogTitle>
           <DialogDescription>
             {mode === "signin"
               ? "Welcome back. Pick up where you left off."
-              : "Join Reelax to build your watchlist."}
+              : "Join Watchera to build your watchlist."}
           </DialogDescription>
         </DialogHeader>
 

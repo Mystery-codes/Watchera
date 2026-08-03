@@ -72,7 +72,7 @@ export function Navbar() {
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center gap-8 px-4 sm:px-8">
         <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
-          Reelax
+          Watchera
         </span>
         <ul className="hidden items-center gap-6 text-sm text-zinc-300 lg:flex">
           {links.map((l) => (
