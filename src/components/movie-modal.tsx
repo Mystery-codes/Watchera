@@ -23,11 +23,11 @@ export function MovieModal({
   >([]);
   const [seasonsLoading, setSeasonsLoading] = useState(false);
 
-  const isSeries = movie?.subjectType === 2;
+  const isSeries = Number(movie?.subjectType) === 2;
   const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED === "true";
 
   useEffect(() => {
-    if (!movie || !isSeries || !movie.detailPath) {
+    if (!movie || !isSeries || !movie.subjectId) {
       setSeasonsList([]);
       return;
     }
@@ -36,7 +36,7 @@ export function MovieModal({
     setSeasonsList([]);
     setSeason(1);
     setEpisode(1);
-    fetch(`/api/episodes?detailPath=${encodeURIComponent(movie.detailPath)}`)
+    fetch(`/api/episodes?subjectId=${encodeURIComponent(movie.subjectId)}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load episodes");
         return res.json();

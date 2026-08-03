@@ -37,13 +37,13 @@ export const RANKING_IDS = {
 
 type RankingItem = {
   subjectId: string;
-  type: number;
+  type: string | number;
   title: string;
   imdbRatingValue?: string;
   imageUrl?: string;
   releaseDate?: string;
   genre?: string;
-  duration?: number;
+  duration?: number | string;
   detailPath?: string;
 };
 
@@ -52,19 +52,21 @@ function mapItem(item: RankingItem, index: number): Movie {
   const genres = item.genre
     ? item.genre.split(",").map((g) => g.trim()).filter(Boolean)
     : [];
+  const subjectType = Number(item.type ?? 1) || 1;
 
   return {
     id: Number(item.subjectId.slice(0, 12)) || index + 1,
     title: item.title,
     year,
     rating: year >= 2024 ? "TV-MA" : "PG-13",
-    duration: item.duration ? `${Math.floor(item.duration / 60)}h ${item.duration % 60}m` : "—",
+    duration: item.duration ? `${Math.floor(Number(item.duration) / 60)}h ${Number(item.duration) % 60}m` : "—",
     genres: genres.length ? genres : ["Drama"],
     description: "",
     poster: item.imageUrl ?? "https://picsum.photos/seed/cineverse/400/600",
     banner: item.imageUrl ?? "https://picsum.photos/seed/cineverse/1600/900",
+    subjectId: item.subjectId,
     detailPath: item.detailPath ?? item.subjectId,
-    subjectType: item.type,
+    subjectType,
   };
 }
 
@@ -74,9 +76,10 @@ export async function fetchRanking(
 ): Promise<Movie[]> {
   try {
     const res = await fetch(`${API_URL}/api/stream/ranking-list?id=${id}`, {
-      headers: { "X-AUTH-KEY": API_KEY },
-      next: { revalidate: 3600 },
-    });
+        headers: { "X-AUTH-KEY": API_KEY },
+        next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(10000),
+      });
     if (!res.ok) return [];
     const data = await res.json();
     const items: RankingItem[] = data.response ?? [];
@@ -91,9 +94,10 @@ export async function fetchMovieDetails(
 ): Promise<{ movie: Movie; source: string } | null> {
   try {
     const res = await fetch(`${API_URL}/api/stream/movie-details?id=${idOrPath}`, {
-      headers: { "X-AUTH-KEY": API_KEY },
-      next: { revalidate: 3600 },
-    });
+        headers: { "X-AUTH-KEY": API_KEY },
+        next: { revalidate: 3600 },
+        signal: AbortSignal.timeout(10000),
+      });
     if (!res.ok) return null;
     const data = await res.json();
     const subject = data.subject;
@@ -109,13 +113,13 @@ export async function fetchMovieDetails(
       title: subject.title,
       year,
       rating: year >= 2024 ? "TV-MA" : "PG-13",
-      duration: subject.duration ? `${Math.floor(subject.duration / 60)}h ${subject.duration % 60}m` : "—",
+      duration: subject.duration ? `${Math.floor(Number(subject.duration) / 60)}h ${Number(subject.duration) % 60}m` : "—",
       genres: genres.length ? genres : ["Drama"],
       description: subject.description ?? "",
       poster: subject.cover?.url ?? "https://picsum.photos/seed/cineverse/400/600",
       banner: subject.cover?.url ?? "https://picsum.photos/seed/cineverse/1600/900",
       detailPath: subject.detailPath ?? subject.subjectId,
-      subjectType: subject.subjectType,
+      subjectType: Number(subject.subjectType ?? 1) || 1,
     };
 
     return { movie, source: data.resource?.source ?? "" };
@@ -151,6 +155,7 @@ export async function fetchVidSource(
       {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 600 },
+        signal: AbortSignal.timeout(10000),
       }
     );
     if (!res.ok) return null;

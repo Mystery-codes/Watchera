@@ -4,14 +4,16 @@ const API_URL = process.env.PLEXHD_API_URL ?? "https://plexhd-server.pages.dev";
 const API_KEY = process.env.PLEXHD_API_KEY ?? "";
 
 export async function GET(request: NextRequest) {
+  const subjectId = request.nextUrl.searchParams.get("subjectId");
   const detailPath = request.nextUrl.searchParams.get("detailPath");
-  if (!detailPath) {
-    return NextResponse.json({ error: "Missing detailPath" }, { status: 400 });
+  const idOrPath = subjectId ?? detailPath;
+  if (!idOrPath) {
+    return NextResponse.json({ error: "Missing subjectId or detailPath" }, { status: 400 });
   }
 
   try {
     const res = await fetch(
-      `${API_URL}/api/stream/movie-details?id=${encodeURIComponent(detailPath)}`,
+      `${API_URL}/api/stream/movie-details?id=${encodeURIComponent(idOrPath)}`,
       {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 600 },
@@ -27,12 +29,21 @@ export async function GET(request: NextRequest) {
     }
 
     const seasons: { season: number; episodes: number }[] = [];
-    const rawSeasons = subject.seasons ?? subject.seasonList ?? [];
+    const rawSeasons =
+      subject.seasons ??
+      subject.seasonList ??
+      data.resource?.seasons ??
+      subject.resource?.seasons ??
+      [];
 
     if (Array.isArray(rawSeasons) && rawSeasons.length > 0) {
       for (const s of rawSeasons) {
-        const seasonNumber = Number(s.season ?? s.seasonNumber ?? s.index ?? 1);
-        const episodeCount = Number(s.episodes ?? s.episodeCount ?? s.count ?? 1);
+        const seasonNumber = Number(
+          s.season ?? s.seasonNumber ?? s.index ?? s.se ?? 1
+        );
+        const episodeCount = Number(
+          s.episodes ?? s.episodeCount ?? s.count ?? s.maxEp ?? 1
+        );
         if (seasonNumber > 0) {
           seasons.push({ season: seasonNumber, episodes: Math.max(1, episodeCount) });
         }
@@ -46,7 +57,10 @@ export async function GET(request: NextRequest) {
 
     seasons.sort((a, b) => a.season - b.season);
 
-    return NextResponse.json({ seasons, subjectType: subject.subjectType });
+    return NextResponse.json({
+      seasons,
+      subjectType: Number(subject.subjectType ?? 1) || 1,
+    });
   } catch {
     return NextResponse.json({ error: "Failed to reach upstream" }, { status: 502 });
   }

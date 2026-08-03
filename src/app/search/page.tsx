@@ -1,6 +1,6 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
-import { MovieCard } from "@/components/movie-card";
+import { SearchContent } from "@/components/search-content";
 import type { Movie } from "@/lib/movies";
 import { fetchRanking, RANKING_IDS } from "@/lib/plexhd";
 
@@ -60,31 +60,7 @@ export default async function SearchPage({
   return (
     <main className="min-h-full bg-background">
       <Navbar />
-      <div className="mx-auto max-w-7xl px-4 pt-24 pb-8 sm:px-8">
-        <h1 className="mb-6 text-2xl font-bold text-white">
-          {query ? (
-            <>
-              Results for <span className="text-primary">&ldquo;{query}&rdquo;</span>
-            </>
-          ) : (
-            "Search"
-          )}
-        </h1>
-
-        {!query ? (
-          <p className="text-zinc-400">Type something in the search bar to find movies.</p>
-        ) : movies.length === 0 ? (
-          <p className="text-zinc-400">
-            No results found for &ldquo;{query}&rdquo;.
-          </p>
-        ) : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-            {movies.map((m) => (
-              <MovieCard key={m.id} movie={m} />
-            ))}
-          </div>
-        )}
-      </div>
+      <SearchContent query={query} movies={movies} />
       <Footer />
     </main>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { MovieRow } from "@/components/movie-row";
+import { MovieModal } from "@/components/movie-modal";
 import type { Movie } from "@/lib/movies";
 
 export default function AnimationPage() {
@@ -20,6 +21,7 @@ export default function AnimationPage() {
 
 function AnimationContent() {
   const [movies, setMovies] = useState<Movie[]>([]);
+  const [selected, setSelected] = useState<Movie | null>(null);
 
   useEffect(() => {
     fetch("/api/animation")
@@ -33,8 +35,9 @@ function AnimationContent() {
       {movies.length === 0 ? (
         <p className="text-zinc-400">No animation titles available right now.</p>
       ) : (
-        <MovieRow title="Animation" movies={movies} onOpen={() => {}} />
+        <MovieRow title="Animation" movies={movies} onOpen={setSelected} />
       )}
+      <MovieModal key={selected?.id ?? "none"} movie={selected} onClose={() => setSelected(null)} />
     </>
   );
 }

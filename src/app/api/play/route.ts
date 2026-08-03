@@ -37,25 +37,28 @@ export async function GET(request: NextRequest) {
   )}&token=${encodeURIComponent(STREAM_TOKEN)}`;
 
   try {
-    const res = await fetch(upstream, { cache: "no-store" });
-    if (!res.ok || !res.body) {
-      return NextResponse.json(
-        { error: "Upstream stream unavailable", status: res.status },
-        { status: res.status || 502 }
-      );
-    }
-    return new NextResponse(res.body, {
-      status: 200,
-      headers: {
-        "Content-Type": res.headers.get("Content-Type") ?? "video/mp4",
-        "Cache-Control": "no-store",
-        "Accept-Ranges": "bytes",
-      },
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(upstream, {
+      cache: "no-store",
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+
+    if (res.ok && res.body) {
+      return new NextResponse(res.body, {
+        status: 200,
+        headers: {
+          "Content-Type": res.headers.get("Content-Type") ?? "video/mp4",
+          "Cache-Control": "no-store",
+          "Accept-Ranges": "bytes",
+        },
+      });
+    }
+
+    // Fallback: if the proxy is unavailable, redirect the browser to the real stream source.
+    return NextResponse.redirect(best.url, 302);
   } catch {
-    return NextResponse.json(
-      { error: "Failed to reach stream" },
-      { status: 502 }
-    );
+    return NextResponse.redirect(best.url, 302);
   }
 }

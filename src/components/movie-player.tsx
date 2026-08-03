@@ -9,7 +9,7 @@ export function MoviePlayer({
   eps = 0,
 }: {
   detailPath: string;
-  type?: number;
+  type?: number | string;
   sea?: number;
   eps?: number;
 }) {

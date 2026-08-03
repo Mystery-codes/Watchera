@@ -9,6 +9,7 @@ export type Movie = {
   poster: string;
   banner: string;
   trending?: boolean;
+  subjectId?: string;
   detailPath?: string;
   // 1 = movie, 2 = series (from the PlexHD API)
   subjectType?: number;

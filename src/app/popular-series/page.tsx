@@ -6,14 +6,17 @@ import { Footer } from "@/components/footer";
 import { MovieCard } from "@/components/movie-card";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
-
-const DEFAULT_EPISODES = 12;
+import { SeasonEpisodePicker } from "@/components/season-episode-picker";
 
 export default function PopularSeriesPage() {
   const [series, setSeries] = useState<Movie[]>([]);
   const [selectedSeries, setSelectedSeries] = useState<Movie | null>(null);
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
+  const [seasonsList, setSeasonsList] = useState<
+    { season: number; episodes: number }[]
+  >([]);
+  const [seasonsLoading, setSeasonsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
@@ -22,11 +25,39 @@ export default function PopularSeriesPage() {
       .then(setSeries);
   }, []);
 
+  const isSeries = Number(selectedSeries?.subjectType) === 2;
+
   function openPlayer(m: Movie) {
     setSelectedSeries(m);
     setSeason(1);
     setEpisode(1);
     setIsPlaying(true);
+
+    if (m.subjectType === 2 && m.subjectId) {
+      setSeasonsLoading(true);
+      setSeasonsList([]);
+      fetch(`/api/episodes?subjectId=${encodeURIComponent(m.subjectId)}`)
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to load episodes");
+          return res.json();
+        })
+        .then((data) => {
+          if (data?.seasons?.length) {
+            setSeasonsList(data.seasons);
+            setSeason(data.seasons[0].season);
+            setEpisode(1);
+          }
+        })
+        .catch((err) => {
+          console.error("Episodes fetch error:", err);
+        })
+        .finally(() => {
+          setSeasonsLoading(false);
+        });
+    } else {
+      setSeasonsList([]);
+      setSeasonsLoading(false);
+    }
   }
 
   return (
@@ -75,7 +106,7 @@ export default function PopularSeriesPage() {
                   autoPlay
                   playsInline
                   className="aspect-video w-full bg-black"
-                  src={`/api/play?detailPath=${encodeURIComponent(selectedSeries.detailPath)}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}&sea=${encodeURIComponent(season)}&eps=${encodeURIComponent(episode)}`}
+                  src={`/api/play?detailPath=${encodeURIComponent(selectedSeries.detailPath)}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}${isSeries ? `&sea=${encodeURIComponent(season)}&eps=${encodeURIComponent(episode)}` : ""}`}
                 />
               </div>
             ) : (
@@ -92,33 +123,23 @@ export default function PopularSeriesPage() {
             <div className="space-y-4 p-6">
               <h1 className="text-3xl font-extrabold">{selectedSeries.title}</h1>
 
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="text-sm text-muted-foreground">Season</label>
-                <select
-                  value={season}
-                  onChange={(e) => setSeason(Number(e.target.value))}
-                  className="rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {Array.from({ length: 5 }, (_, i) => i + 1).map((s) => (
-                    <option key={s} value={s}>
-                      Season {s}
-                    </option>
-                  ))}
-                </select>
+              {isSeries && seasonsLoading && (
+                <p className="text-xs text-muted-foreground">Loading episodes...</p>
+              )}
 
-                <label className="text-sm text-muted-foreground">Episode</label>
-                <select
-                  value={episode}
-                  onChange={(e) => setEpisode(Number(e.target.value))}
-                  className="rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {Array.from({ length: DEFAULT_EPISODES }, (_, i) => i + 1).map((ep) => (
-                    <option key={ep} value={ep}>
-                      Episode {ep}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isSeries && !seasonsLoading && seasonsList.length > 0 && (
+                <SeasonEpisodePicker
+                  seasons={seasonsList}
+                  selectedSeason={season}
+                  selectedEpisode={episode}
+                  onSeasonChange={setSeason}
+                  onEpisodeChange={setEpisode}
+                />
+              )}
+
+              {isSeries && !seasonsLoading && seasonsList.length === 0 && (
+                <p className="text-xs text-muted-foreground">Episode info unavailable for this title.</p>
+              )}
 
               <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={() => setIsPlaying(true)}>
