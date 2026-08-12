@@ -8,6 +8,11 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { AuthDialog } from "@/components/auth-dialog";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 const links: { label: string; href: string }[] = [
   { label: "Home", href: "/" },
   { label: "TV Series", href: "/popular-series" },
@@ -23,7 +28,7 @@ export function Navbar() {
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -48,7 +53,7 @@ export function Navbar() {
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
-      setInstallPrompt(e);
+      setInstallPrompt(e as BeforeInstallPromptEvent);
     };
     window.addEventListener("beforeinstallprompt", handler as EventListener);
     return () => window.removeEventListener("beforeinstallprompt", handler as EventListener);
@@ -73,9 +78,8 @@ export function Navbar() {
 
   async function handleInstall() {
     if (!installPrompt) return;
-    const promptEvent = installPrompt as any;
-    promptEvent.prompt();
-    const { outcome } = await promptEvent.userChoice;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
     if (outcome === "accepted") {
       setInstallPrompt(null);
     }
