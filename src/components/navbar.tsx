@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Bell, Menu, LogOut, X } from "lucide-react";
+import { Search, Bell, Menu, LogOut, X, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { AuthDialog } from "@/components/auth-dialog";
@@ -23,6 +23,7 @@ export function Navbar() {
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,6 +46,15 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler as EventListener);
+    return () => window.removeEventListener("beforeinstallprompt", handler as EventListener);
+  }, []);
+
+  useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) setUser({ email: data.user.email ?? "" });
@@ -59,6 +69,16 @@ export function Navbar() {
     const supabase = createClient();
     await supabase.auth.signOut();
     setUser(null);
+  }
+
+  async function handleInstall() {
+    if (!installPrompt) return;
+    const promptEvent = installPrompt as any;
+    promptEvent.prompt();
+    const { outcome } = await promptEvent.userChoice;
+    if (outcome === "accepted") {
+      setInstallPrompt(null);
+    }
   }
 
   return (
@@ -126,12 +146,23 @@ export function Navbar() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setAuthOpen(true)}
-              className="rounded bg-primary px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
-            >
-              Sign in
-            </button>
+            <>
+              {installPrompt && (
+                <button
+                  onClick={handleInstall}
+                  className="rounded bg-primary px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 flex items-center gap-1.5"
+                >
+                  <Download className="size-4" />
+                  Install App
+                </button>
+              )}
+              <button
+                onClick={() => setAuthOpen(true)}
+                className="rounded bg-primary px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+              >
+                Sign in
+              </button>
+            </>
           )}
         </div>
       </nav>
