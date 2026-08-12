@@ -6,9 +6,10 @@ const API_KEY = process.env.PLEXHD_API_KEY ?? "";
 export async function GET(request: NextRequest) {
   const subjectId = request.nextUrl.searchParams.get("subjectId");
   const detailPath = request.nextUrl.searchParams.get("detailPath");
-  const idOrPath = subjectId ?? detailPath;
+  const id = request.nextUrl.searchParams.get("id");
+  const idOrPath = subjectId ?? detailPath ?? id;
   if (!idOrPath) {
-    return NextResponse.json({ error: "Missing subjectId or detailPath" }, { status: 400 });
+    return NextResponse.json({ error: "Missing subjectId, detailPath, or id" }, { status: 400 });
   }
 
   try {
@@ -60,6 +61,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       seasons,
       subjectType: Number(subject.subjectType ?? 1) || 1,
+      description: subject.description ?? "",
+      title: subject.title ?? "",
+      year: subject.releaseDate ? Number(String(subject.releaseDate).slice(0, 4)) : 0,
+      rating: subject.rating ?? "TV-MA",
+      duration: subject.duration ?? "—",
+      genres: subject.genre
+        ? String(subject.genre).split(",").map((g: string) => g.trim()).filter(Boolean)
+        : [],
+      poster: subject.cover?.url ?? "",
+      banner: subject.cover?.url ?? "",
     });
   } catch {
     return NextResponse.json({ error: "Failed to reach upstream" }, { status: 502 });

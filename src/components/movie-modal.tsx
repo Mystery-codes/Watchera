@@ -22,43 +22,89 @@ export function MovieModal({
     { season: number; episodes: number }[]
   >([]);
   const [seasonsLoading, setSeasonsLoading] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [details, setDetails] = useState<{
+    description?: string;
+    title?: string;
+    year?: number;
+    rating?: string;
+    duration?: string;
+    genres?: string[];
+    poster?: string;
+    banner?: string;
+    subjectType?: number;
+  }>({});
 
-  const isSeries = Number(movie?.subjectType) === 2;
+  const displayMovie = {
+    ...movie,
+    ...details,
+  };
+
+  const isSeries = Number(displayMovie.subjectType ?? movie?.subjectType ?? 2) === 2;
   const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED === "true";
 
+  const playId = displayMovie.detailPath ?? movie?.detailPath ?? String(displayMovie.id ?? movie?.id);
+
   useEffect(() => {
-    if (!movie || !isSeries || !movie.subjectId) {
-      setSeasonsList([]);
-      return;
-    }
+    if (!movie) return;
+    const idOrPath = movie.subjectId ?? movie.detailPath ?? String(movie.id);
+    if (!idOrPath) return;
+
     let cancelled = false;
-    setSeasonsLoading(true);
-    setSeasonsList([]);
-    setSeason(1);
-    setEpisode(1);
-    fetch(`/api/episodes?subjectId=${encodeURIComponent(movie.subjectId)}`)
+
+    if (isSeries) {
+      setSeasonsLoading(true);
+      setSeasonsList([]);
+      setSeason(1);
+      setEpisode(1);
+    }
+
+    setDetailsLoading(true);
+    setDetails({});
+
+    fetch(`/api/episodes?id=${encodeURIComponent(idOrPath)}`)
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to load episodes");
+        if (!res.ok) throw new Error("Failed to load details");
         return res.json();
       })
       .then((data) => {
         if (cancelled) return;
-        if (data?.seasons?.length) {
+        setDetails({
+          description: data.description ?? movie.description ?? "",
+          title: data.title ?? movie.title,
+          year: data.year ?? movie.year,
+          rating: data.rating ?? movie.rating,
+          duration: data.duration ?? movie.duration,
+          genres: data.genres?.length ? data.genres : movie.genres,
+          poster: data.poster ?? movie.poster,
+          banner: data.banner ?? movie.banner,
+          subjectType: data.subjectType ?? movie.subjectType,
+        });
+
+        if (isSeries && data.seasons?.length) {
           setSeasonsList(data.seasons);
           setSeason(data.seasons[0].season);
           setEpisode(1);
         }
       })
       .catch((err) => {
-        console.error("Episodes fetch error:", err);
+        if (!cancelled) {
+          console.error("Details fetch error:", err);
+          setDetailsError(err instanceof Error ? err.message : "Failed to load synopsis");
+        }
       })
       .finally(() => {
-        if (!cancelled) setSeasonsLoading(false);
+        if (!cancelled) {
+          setSeasonsLoading(false);
+          setDetailsLoading(false);
+        }
       });
+
     return () => {
       cancelled = true;
     };
-  }, [isSeries, movie?.detailPath, movie?.id]);
+  }, [isSeries, movie?.detailPath, movie?.subjectId, movie?.id]);
 
   function handleSeasonChange(s: number) {
     setSeason(s);
@@ -70,8 +116,6 @@ export function MovieModal({
   }
 
   if (!movie) return null;
-
-  const playId = movie.detailPath ?? String(movie.id);
 
   return (
     <div
@@ -93,15 +137,15 @@ export function MovieModal({
         {streamEnabled ? (
           <MoviePlayer
             detailPath={playId}
-            type={movie.subjectType ?? 1}
+            type={displayMovie.subjectType ?? movie.subjectType ?? 1}
             sea={isSeries ? season : 0}
             eps={isSeries ? episode : 0}
           />
         ) : (
           <div className="relative aspect-video w-full">
             <Image
-              src={movie.banner}
-              alt={movie.title}
+              src={displayMovie.banner ?? movie.banner}
+              alt={displayMovie.title ?? movie.title}
               fill
               sizes="768px"
               className="object-cover"
@@ -111,12 +155,12 @@ export function MovieModal({
         )}
 
         <div className="space-y-4 p-6">
-          <h1 className="text-3xl font-extrabold">{movie.title}</h1>
+          <h1 className="text-3xl font-extrabold">{displayMovie.title ?? movie.title}</h1>
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
             <span className="font-semibold text-green-500">98% Match</span>
-            <span>{movie.year}</span>
-            <Badge variant="outline">{movie.rating}</Badge>
-            <span>{movie.duration}</span>
+            <span>{displayMovie.year ?? movie.year}</span>
+            <Badge variant="outline">{displayMovie.rating ?? movie.rating}</Badge>
+            <span>{displayMovie.duration ?? movie.duration}</span>
           </div>
 
           {isSeries && seasonsLoading && (
@@ -157,12 +201,18 @@ export function MovieModal({
             </p>
           )}
 
-          <p className="text-sm leading-relaxed text-zinc-300">
-            {movie.description || "No description available."}
-          </p>
+          {detailsLoading ? (
+            <p className="text-sm leading-relaxed text-muted-foreground">Loading synopsis...</p>
+          ) : detailsError ? (
+            <p className="text-sm leading-relaxed text-destructive">{detailsError}</p>
+          ) : (
+            <p className="text-sm leading-relaxed text-zinc-300">
+              {displayMovie.description || "No description available."}
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-2">
-            {movie.genres.map((g) => (
+            {(displayMovie.genres?.length ? displayMovie.genres : movie.genres).map((g) => (
               <Badge key={g} className="bg-secondary text-secondary-foreground">
                 {g}
               </Badge>
