@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Bell, Menu, LogOut, X, Download } from "lucide-react";
@@ -28,6 +29,7 @@ export function Navbar() {
   const [user, setUser] = useState<{ email: string } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,9 +97,18 @@ export function Navbar() {
       )}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center gap-8 px-4 sm:px-8">
-        <span className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-red-500 to-blue-500 bg-clip-text text-transparent">
-          Watchera
-        </span>
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="Watchera Logo"
+            width={40}
+            height={40}
+            className="object-contain"
+          />
+          <span className="text-xl font-bold bg-gradient-to-r from-red-500 to-white bg-clip-text text-transparent">
+            Watchera
+          </span>
+        </Link>
         <ul className="hidden items-center gap-6 text-sm text-zinc-300 lg:flex">
           {links.map((l) => (
             <li key={l.label} className="cursor-pointer transition-colors hover:text-white">
@@ -134,7 +145,15 @@ export function Navbar() {
             />
           )}
           <Bell className="size-5 cursor-pointer hover:text-white" />
-          <Menu className="size-5 cursor-pointer lg:hidden" />
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="grid size-8 place-items-center rounded-md text-zinc-300 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
 
           {user ? (
             <div className="flex items-center gap-3">
@@ -170,6 +189,24 @@ export function Navbar() {
           )}
         </div>
       </nav>
+
+      {mobileMenuOpen && (
+        <div className="border-t border-white/10 bg-black/95 px-4 py-3 lg:hidden">
+          <ul className="flex flex-col gap-2 text-sm text-zinc-200">
+            {links.map((link) => (
+              <li key={link.label}>
+                <Link
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block rounded-md px-3 py-2 transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </header>
