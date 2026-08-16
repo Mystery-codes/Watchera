@@ -1,12 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download, Trash2 } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { MovieCard } from "@/components/movie-card";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 import { SeasonEpisodePicker } from "@/components/season-episode-picker";
+import {
+  deleteDownloadedVideo,
+  getDownloadedVideo,
+  getOfflineVideoKey,
+  saveDownloadedVideo,
+  type OfflineDownloadMeta,
+} from "@/lib/offline-downloads";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function PopularSeriesPage() {
   const [series, setSeries] = useState<Movie[]>([]);
@@ -18,6 +34,11 @@ export default function PopularSeriesPage() {
   >([]);
   const [seasonsLoading, setSeasonsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [offlineRecord, setOfflineRecord] = useState<OfflineDownloadMeta | null>(null);
+  const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
+  const [downloadChoiceOpen, setDownloadChoiceOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/popular-series")
@@ -26,13 +47,38 @@ export default function PopularSeriesPage() {
   }, []);
 
   const isSeries = Number(selectedSeries?.subjectType) === 2;
+  const playId = selectedSeries?.detailPath ?? (selectedSeries ? String(selectedSeries.id) : "");
+  const offlineKey = selectedSeries
+    ? getOfflineVideoKey({
+        detailPath: playId,
+        type: selectedSeries.subjectType ?? 2,
+        sea: isSeries ? season : 0,
+        eps: isSeries ? episode : 0,
+      })
+    : "";
+
+  useEffect(() => {
+    if (!selectedSeries || !playId) return;
+    setOfflineRecord(null);
+    setOfflineBlob(null);
+
+    getDownloadedVideo(offlineKey)
+      .then((record) => {
+        if (!record) return;
+        setOfflineRecord({ ...record, url: record.url ?? "" });
+        setOfflineBlob(record.blob ?? null);
+      })
+      .catch(() => {
+        setOfflineRecord(null);
+        setOfflineBlob(null);
+      });
+  }, [selectedSeries, playId, offlineKey]);
 
   function openPlayer(m: Movie) {
     setSelectedSeries(m);
     setSeason(1);
     setEpisode(1);
     setIsPlaying(true);
-
     if (m.subjectType === 2 && m.subjectId) {
       setSeasonsLoading(true);
       setSeasonsList([]);
@@ -57,6 +103,131 @@ export default function PopularSeriesPage() {
     } else {
       setSeasonsList([]);
       setSeasonsLoading(false);
+    }
+  }
+
+  async function handleDownloadToDevice() {
+    if (!selectedSeries) return;
+    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
+
+    setDownloading(true);
+    setDownloadProgress(null);
+    setDownloadChoiceOpen(false);
+
+    try {
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+      }
+
+      const contentLength = Number(response.headers.get("Content-Length")) || 0;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Streaming not supported in this browser");
+      }
+
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (contentLength > 0) {
+          setDownloadProgress(Math.round((received / contentLength) * 100));
+        }
+      }
+
+      const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      const fileName = `${(selectedSeries.title ?? "download").replace(/[^a-z0-9]/gi, "_")}_${isSeries ? `S${season}_E${episode}` : ""}.mp4`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDownloadProgress(null);
+    } catch (err) {
+      console.error("Download error:", err);
+      alert(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleDownloadToWatchera() {
+    if (!selectedSeries) return;
+    if (offlineRecord) {
+      setDownloadChoiceOpen(false);
+      return;
+    }
+
+    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
+
+    setDownloading(true);
+    setDownloadProgress(null);
+    setDownloadChoiceOpen(false);
+
+    try {
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+      }
+
+      const contentLength = Number(response.headers.get("Content-Length")) || 0;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Streaming not supported in this browser");
+      }
+
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (contentLength > 0) {
+          setDownloadProgress(Math.round((received / contentLength) * 100));
+        }
+      }
+
+      const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
+      const saved = await saveDownloadedVideo(
+        {
+          key: offlineKey,
+          title: selectedSeries.title,
+          detailPath: playId,
+          type: selectedSeries.subjectType ?? 2,
+          sea: isSeries ? season : 0,
+          eps: isSeries ? episode : 0,
+        },
+        blob
+      );
+
+      setOfflineRecord(saved);
+      setOfflineBlob(blob);
+      setDownloadProgress(null);
+    } catch (err) {
+      console.error("Download error:", err);
+      alert(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleDeleteOffline() {
+    try {
+      await deleteDownloadedVideo(offlineKey);
+      setOfflineRecord(null);
+      setOfflineBlob(null);
+    } catch (err) {
+      console.error("Delete download error:", err);
+      alert(err instanceof Error ? err.message : "Failed to remove download");
     }
   }
 
@@ -99,14 +270,18 @@ export default function PopularSeriesPage() {
               ✕
             </button>
 
-            {isPlaying && selectedSeries.detailPath ? (
+            {isPlaying && (selectedSeries.detailPath || offlineBlob) ? (
               <div className="overflow-hidden rounded-lg bg-black">
                 <video
                   controls
                   autoPlay
                   playsInline
                   className="aspect-video w-full bg-black"
-                  src={`/api/play?detailPath=${encodeURIComponent(selectedSeries.detailPath)}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}${isSeries ? `&sea=${encodeURIComponent(season)}&eps=${encodeURIComponent(episode)}` : ""}`}
+                  src={
+                    offlineBlob
+                      ? URL.createObjectURL(offlineBlob)
+                      : `/api/play?detailPath=${encodeURIComponent(selectedSeries.detailPath ?? String(selectedSeries.id))}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}${isSeries ? `&sea=${encodeURIComponent(season)}&eps=${encodeURIComponent(episode)}` : ""}`
+                  }
                 />
               </div>
             ) : (
@@ -145,7 +320,63 @@ export default function PopularSeriesPage() {
                 <Button onClick={() => setIsPlaying(true)}>
                   ▶ Play
                 </Button>
+                {offlineRecord ? (
+                  <Button
+                    variant="secondary"
+                    onClick={handleDeleteOffline}
+                    className="flex items-center gap-2"
+                    aria-label="Remove downloaded video"
+                  >
+                    <Trash2 className="size-4" />
+                    <span>Remove</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setDownloadChoiceOpen(true)}
+                    disabled={downloading}
+                    aria-label="Choose download destination"
+                    className="flex items-center gap-2"
+                  >
+                    {downloading ? (
+                      <>
+                        <svg
+                          className="-ml-1 size-4 animate-spin"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 8 0 16 8 8 0 0 8-8-16z"
+                          />
+                        </svg>
+                        <span>{downloadProgress ?? 0}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="size-4" />
+                        <span>Download</span>
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
+
+              {offlineRecord && (
+                <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+                  Available offline for viewing without internet.
+                </p>
+              )}
 
               <p className="text-sm leading-relaxed text-zinc-300">
                 {selectedSeries.description || "No description available."}
@@ -165,6 +396,32 @@ export default function PopularSeriesPage() {
           </div>
         </div>
       )}
+
+      <Dialog open={downloadChoiceOpen} onOpenChange={setDownloadChoiceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose download destination</DialogTitle>
+            <DialogDescription>
+              Save this title to your device or keep it inside Watchera for offline viewing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <Button onClick={handleDownloadToDevice} className="justify-center">
+              <Download className="size-4" />
+              Download to device
+            </Button>
+            <Button variant="secondary" onClick={handleDownloadToWatchera} className="justify-center">
+              <Download className="size-4" />
+              Download to Watchera
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDownloadChoiceOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </main>

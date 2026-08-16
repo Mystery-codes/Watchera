@@ -7,9 +7,11 @@ import type { Movie } from "@/lib/movies";
 export function MovieCard({
   movie,
   onOpen,
+  gridView = false,
 }: {
   movie: Movie;
   onOpen?: (m: Movie) => void;
+  gridView?: boolean;
 }) {
   const handleClick = () => onOpen?.(movie);
 
@@ -17,14 +19,20 @@ export function MovieCard({
     <button
       data-aos="fade-up"
       onClick={handleClick}
-      className="group relative w-40 shrink-0 overflow-hidden rounded-md transition-transform duration-300 hover:z-10 hover:scale-105 sm:w-48"
+      className={`group relative overflow-hidden rounded-md transition-transform duration-300 hover:z-10 hover:scale-105 ${
+        gridView ? "w-full" : "w-40 shrink-0 sm:w-48"
+      }`}
     >
       <div className="relative aspect-[2/3] w-full">
         <Image
           src={movie.poster}
           alt={movie.title}
           fill
-          sizes="192px"
+          sizes={
+            gridView
+              ? "(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 16.66vw"
+              : "192px"
+          }
           className="rounded-md object-cover"
         />
         <div className="absolute inset-0 rounded-md bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />

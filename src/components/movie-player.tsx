@@ -1,19 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export function MoviePlayer({
   detailPath,
   type = 1,
   sea = 0,
   eps = 0,
+  offlineBlob,
 }: {
   detailPath: string;
   type?: number | string;
   sea?: number;
   eps?: number;
+  offlineBlob?: Blob | null;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const src = useMemo(
     () =>
       `/api/play?detailPath=${encodeURIComponent(
@@ -21,6 +24,20 @@ export function MoviePlayer({
       )}&type=${encodeURIComponent(type)}&sea=${encodeURIComponent(sea)}&eps=${encodeURIComponent(eps)}`,
     [detailPath, type, sea, eps]
   );
+
+  useEffect(() => {
+    if (!offlineBlob) {
+      setVideoSrc(src);
+      return;
+    }
+
+    const url = URL.createObjectURL(offlineBlob);
+    setVideoSrc(url);
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [offlineBlob, src]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -65,7 +82,7 @@ export function MoviePlayer({
         autoPlay
         playsInline
         className="aspect-video w-full bg-black"
-        src={src}
+        src={videoSrc ?? src}
       />
     </div>
   );

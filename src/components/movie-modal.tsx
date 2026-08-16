@@ -2,19 +2,36 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Play, Plus, ThumbsUp, X } from "lucide-react";
+import { Play, Plus, ThumbsUp, X, Download, Trash2 } from "lucide-react";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MoviePlayer } from "@/components/movie-player";
 import { SeasonEpisodePicker } from "@/components/season-episode-picker";
+import {
+  deleteDownloadedVideo,
+  getDownloadedVideo,
+  getOfflineVideoKey,
+  saveDownloadedVideo,
+  type OfflineDownloadMeta,
+} from "@/lib/offline-downloads";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function MovieModal({
   movie,
   onClose,
+  onDownloadChange,
 }: {
   movie: Movie | null;
   onClose: () => void;
+  onDownloadChange?: () => void | Promise<void>;
 }) {
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
@@ -35,6 +52,11 @@ export function MovieModal({
     banner?: string;
     subjectType?: number;
   }>({});
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [offlineRecord, setOfflineRecord] = useState<OfflineDownloadMeta | null>(null);
+  const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
+  const [downloadChoiceOpen, setDownloadChoiceOpen] = useState(false);
 
   const displayMovie = {
     ...movie,
@@ -45,6 +67,29 @@ export function MovieModal({
   const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED === "true";
 
   const playId = displayMovie.detailPath ?? movie?.detailPath ?? String(displayMovie.id ?? movie?.id);
+  const offlineKey = getOfflineVideoKey({
+    detailPath: playId,
+    type: displayMovie.subjectType ?? movie?.subjectType ?? 1,
+    sea: isSeries ? season : 0,
+    eps: isSeries ? episode : 0,
+  });
+
+  useEffect(() => {
+    if (!movie || !playId) return;
+    setOfflineRecord(null);
+    setOfflineBlob(null);
+
+    getDownloadedVideo(offlineKey)
+      .then((record) => {
+        if (!record) return;
+        setOfflineRecord({ ...record, url: record.url ?? "" });
+        setOfflineBlob(record.blob ?? null);
+      })
+      .catch(() => {
+        setOfflineRecord(null);
+        setOfflineBlob(null);
+      });
+  }, [movie, offlineKey, playId]);
 
   useEffect(() => {
     if (!movie) return;
@@ -115,6 +160,133 @@ export function MovieModal({
     setEpisode(ep);
   }
 
+  async function handleDownloadToDevice() {
+    if (!movie) return;
+    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
+
+    setDownloading(true);
+    setDownloadProgress(null);
+    setDownloadChoiceOpen(false);
+
+    try {
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+      }
+
+      const contentLength = Number(response.headers.get("Content-Length")) || 0;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Streaming not supported in this browser");
+      }
+
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (contentLength > 0) {
+          setDownloadProgress(Math.round((received / contentLength) * 100));
+        }
+      }
+
+      const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
+      const url = URL.createObjectURL(blob);
+      const fileName = `${(displayMovie.title ?? movie.title).replace(/[^a-z0-9]/gi, "_")}_${isSeries ? `S${season}_E${episode}` : ""}.mp4`;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setDownloadProgress(null);
+    } catch (err) {
+      console.error("Download error:", err);
+      alert(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleDownloadToWatchera() {
+    if (!movie) return;
+    if (offlineRecord) {
+      setDownloadChoiceOpen(false);
+      return;
+    }
+
+    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
+
+    setDownloading(true);
+    setDownloadProgress(null);
+    setDownloadChoiceOpen(false);
+
+    try {
+      const response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+      }
+
+      const contentLength = Number(response.headers.get("Content-Length")) || 0;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("Streaming not supported in this browser");
+      }
+
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (contentLength > 0) {
+          setDownloadProgress(Math.round((received / contentLength) * 100));
+        }
+      }
+
+      const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
+      const saved = await saveDownloadedVideo(
+        {
+          key: offlineKey,
+          title: displayMovie.title ?? movie.title,
+          detailPath: playId,
+          type: displayMovie.subjectType ?? movie.subjectType ?? 1,
+          sea: isSeries ? season : 0,
+          eps: isSeries ? episode : 0,
+        },
+        blob
+      );
+
+      setOfflineRecord(saved);
+      setOfflineBlob(blob);
+      setDownloadProgress(null);
+      await onDownloadChange?.();
+    } catch (err) {
+      console.error("Download error:", err);
+      alert(err instanceof Error ? err.message : "Download failed");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  async function handleDeleteOffline() {
+    try {
+      await deleteDownloadedVideo(offlineKey);
+      setOfflineRecord(null);
+      setOfflineBlob(null);
+      await onDownloadChange?.();
+    } catch (err) {
+      console.error("Delete download error:", err);
+      alert(err instanceof Error ? err.message : "Failed to remove download");
+    }
+  }
+
   if (!movie) return null;
 
   return (
@@ -134,12 +306,13 @@ export function MovieModal({
           <X className="size-4" />
         </button>
 
-        {streamEnabled ? (
+        {streamEnabled || offlineBlob ? (
           <MoviePlayer
             detailPath={playId}
             type={displayMovie.subjectType ?? movie.subjectType ?? 1}
             sea={isSeries ? season : 0}
             eps={isSeries ? episode : 0}
+            offlineBlob={offlineBlob}
           />
         ) : (
           <div className="relative aspect-video w-full">
@@ -182,7 +355,7 @@ export function MovieModal({
           )}
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button disabled={!streamEnabled}>
+            <Button disabled={!streamEnabled && !offlineBlob}>
               <Play className="size-4 fill-white" /> Play
             </Button>
             <Button variant="secondary" size="icon" aria-label="Add to list">
@@ -191,7 +364,63 @@ export function MovieModal({
             <Button variant="secondary" size="icon" aria-label="Like">
               <ThumbsUp className="size-4" />
             </Button>
+            {offlineRecord ? (
+              <Button
+                variant="secondary"
+                onClick={handleDeleteOffline}
+                className="flex items-center gap-2"
+                aria-label="Remove downloaded video"
+              >
+                <Trash2 className="size-4" />
+                <span>Remove</span>
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={() => setDownloadChoiceOpen(true)}
+                disabled={downloading || !streamEnabled}
+                aria-label="Choose download destination"
+                className="flex items-center gap-2"
+              >
+                {downloading ? (
+                  <>
+                    <svg
+                      className="-ml-1 size-4 animate-spin"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 8 0 16 8 8 0 0 8-8-16z"
+                      />
+                    </svg>
+                    <span>{downloadProgress ?? 0}%</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="size-4" />
+                    <span>Download</span>
+                  </>
+                )}
+              </Button>
+            )}
           </div>
+
+          {offlineRecord && (
+            <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
+              Available offline for viewing without internet.
+            </p>
+          )}
 
           {!streamEnabled && (
             <p className="rounded-md border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
@@ -220,6 +449,32 @@ export function MovieModal({
           </div>
         </div>
       </div>
+
+      <Dialog open={downloadChoiceOpen} onOpenChange={setDownloadChoiceOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose download destination</DialogTitle>
+            <DialogDescription>
+              Save this title to your device or keep it inside Watchera for offline viewing.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <Button onClick={handleDownloadToDevice} className="justify-center">
+              <Download className="size-4" />
+              Download to device
+            </Button>
+            <Button variant="secondary" onClick={handleDownloadToWatchera} className="justify-center">
+              <Download className="size-4" />
+              Download to Watchera
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDownloadChoiceOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
