@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Bell, Menu, LogOut, X, Download } from "lucide-react";
+import { Search, Menu, LogOut, X, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { AuthDialog } from "@/components/auth-dialog";
@@ -144,7 +144,6 @@ export function Navbar() {
               onClick={() => setSearchOpen(true)}
             />
           )}
-          <Bell className="size-5 cursor-pointer hover:text-white" />
           <button
             type="button"
             onClick={() => setMobileMenuOpen((prev) => !prev)}

@@ -1,12 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
-type Mode = "signin" | "signup";
 
 function GoogleIcon() {
   return (
@@ -38,12 +36,17 @@ export function AuthDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      const saved = localStorage.getItem("watchera_email");
+      if (saved) setEmail(saved);
+    }
+  }, [open]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,23 +56,18 @@ export function AuthDialog({
 
     const supabase = createClient();
 
-    if (mode === "signup") {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) setError(error.message);
-      else
-        setMessage(
-          "Account created! Check your email to confirm your sign up."
-        );
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      setError(error.message);
     } else {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) setError(error.message);
-      else {
-        setMessage("Signed in!");
-        onOpenChange(false);
-      }
+      localStorage.setItem("watchera_email", email);
+      setMessage("Check your email for the sign-in link.");
     }
 
     setLoading(false);
@@ -85,7 +83,7 @@ export function AuthDialog({
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin}/auth/callback`,
       },
     });
 
@@ -99,13 +97,9 @@ export function AuthDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "signin" ? "Sign in to Watchera" : "Create your account"}
-          </DialogTitle>
+          <DialogTitle>Sign in to Watchera</DialogTitle>
           <DialogDescription>
-            {mode === "signin"
-              ? "Welcome back. Pick up where you left off."
-              : "Join Watchera to build your watchlist."}
+            Enter your email and we&apos;ll send you a sign-in link.
           </DialogDescription>
         </DialogHeader>
 
@@ -117,24 +111,12 @@ export function AuthDialog({
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-          <Input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
 
           {error && <p className="text-sm text-destructive">{error}</p>}
           {message && <p className="text-sm text-green-500">{message}</p>}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading
-              ? "Please wait..."
-              : mode === "signin"
-                ? "Sign in"
-                : "Sign up"}
+            {loading ? "Sending link..." : "Continue with email"}
           </Button>
         </form>
 
@@ -157,22 +139,8 @@ export function AuthDialog({
           disabled={loading}
         >
           <GoogleIcon />
-          Continue with Google
+          Google
         </Button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === "signin" ? "signup" : "signin");
-            setError(null);
-            setMessage(null);
-          }}
-          className="text-sm text-muted-foreground hover:text-white"
-        >
-          {mode === "signin"
-            ? "New here? Create an account"
-            : "Already have an account? Sign in"}
-        </button>
       </DialogContent>
     </Dialog>
   );

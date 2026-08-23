@@ -225,8 +225,14 @@ export function MovieModal({
     setDownloadProgress(null);
     setDownloadChoiceOpen(false);
 
+    let timeoutId: NodeJS.Timeout | null = null;
     try {
-      const response = await fetch(downloadUrl);
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), 120000);
+
+      const response = await fetch(downloadUrl, { signal: controller.signal });
+      if (timeoutId) clearTimeout(timeoutId);
+
       if (!response.ok) {
         throw new Error(`Download failed: ${response.status} ${response.statusText}`);
       }
@@ -268,8 +274,15 @@ export function MovieModal({
       setDownloadProgress(null);
       await onDownloadChange?.();
     } catch (err) {
+      if (timeoutId) clearTimeout(timeoutId);
       console.error("Download error:", err);
-      alert(err instanceof Error ? err.message : "Download failed");
+      const errorMsg =
+        err instanceof Error
+          ? err.message.includes("abort")
+            ? "Download timed out. Please try again."
+            : err.message
+          : "Download failed";
+      alert(errorMsg);
     } finally {
       setDownloading(false);
     }

@@ -53,6 +53,8 @@ function mapItem(item: RankingItem, index: number): Movie {
     ? item.genre.split(",").map((g) => g.trim()).filter(Boolean)
     : [];
   const subjectType = Number(item.type ?? 1) || 1;
+  const imageUrl = item.imageUrl?.trim() || `https://picsum.photos/seed/${item.subjectId || index}/400/600`;
+  const bannerUrl = item.imageUrl?.trim() || `https://picsum.photos/seed/${item.subjectId || index}/1600/900`;
 
   return {
     id: Number(item.subjectId.slice(0, 12)) || index + 1,
@@ -62,8 +64,8 @@ function mapItem(item: RankingItem, index: number): Movie {
     duration: item.duration ? `${Math.floor(Number(item.duration) / 60)}h ${Number(item.duration) % 60}m` : "—",
     genres: genres.length ? genres : ["Drama"],
     description: "",
-    poster: item.imageUrl ?? "https://picsum.photos/seed/cineverse/400/600",
-    banner: item.imageUrl ?? "https://picsum.photos/seed/cineverse/1600/900",
+    poster: imageUrl,
+    banner: bannerUrl,
     subjectId: item.subjectId,
     detailPath: item.detailPath ?? item.subjectId,
     subjectType,
