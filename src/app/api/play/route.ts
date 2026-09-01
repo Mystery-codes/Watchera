@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchVidSource } from "@/lib/plexhd";
 
-const API_URL = process.env.PLEXHD_API_URL ?? "https://plexhd-server.pages.dev";
+const API_URL = process.env.PLEXHD_API_URL ?? "https://streamapinuxt.hdplexv.workers.dev";
 const STREAM_TOKEN = process.env.PLEXHD_STREAM_TOKEN ?? "";
 
 function isPrivateIp(value: string): boolean {

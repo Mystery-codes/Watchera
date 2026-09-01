@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const API_URL = process.env.PLEXHD_API_URL ?? "https://plexhd-server.pages.dev";
+const API_URL = process.env.PLEXHD_API_URL ?? "https://streamapinuxt.hdplexv.workers.dev";
 const API_KEY = process.env.PLEXHD_API_KEY ?? "";
 
 export async function GET(request: NextRequest) {
@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
       {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 600 },
+        signal: AbortSignal.timeout(30000),
       }
     );
     if (!res.ok) {

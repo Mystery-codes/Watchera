@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Movie } from "./movies";
 
-const API_URL = process.env.PLEXHD_API_URL ?? "https://plexhd-server.pages.dev";
+const API_URL = process.env.PLEXHD_API_URL ?? "https://streamapinuxt.hdplexv.workers.dev";
 const API_KEY = process.env.PLEXHD_API_KEY ?? "";
 
 export const RANKING_IDS = {
@@ -80,7 +80,7 @@ export async function fetchRanking(
     const res = await fetch(`${API_URL}/api/stream/ranking-list?id=${id}`, {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 3600 },
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(30000),
       });
     if (!res.ok) return [];
     const data = await res.json();
@@ -98,7 +98,7 @@ export async function fetchMovieDetails(
     const res = await fetch(`${API_URL}/api/stream/movie-details?id=${idOrPath}`, {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 3600 },
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(30000),
       });
     if (!res.ok) return null;
     const data = await res.json();
@@ -157,7 +157,7 @@ export async function fetchVidSource(
       {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 600 },
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(30000),
       }
     );
     if (!res.ok) return null;
