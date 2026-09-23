@@ -24,9 +24,10 @@ export default async function Home() {
   const sections = [
     { title: "Trending Now", id: RANKING_IDS.trending },
     { title: "Popular Movies", id: RANKING_IDS.popularMovies },
+    { title: "Nollywood", id: RANKING_IDS.nollywood },
+    { title: "K-Drama", id: RANKING_IDS.kDrama },
     { title: "Action Movies", id: RANKING_IDS.actionMovies },
     { title: "Anime", id: RANKING_IDS.anime },
-    { title: "K-Drama", id: RANKING_IDS.kDrama },
     { title: "Animation", id: RANKING_IDS.animation },
     { title: "Gangstar", id: RANKING_IDS.gangstar },
     { title: "Black Excellence", id: RANKING_IDS.blackExcellence },
@@ -47,7 +48,6 @@ export default async function Home() {
     { title: "Adventures", id: RANKING_IDS.adventure },
     { title: "Turkish Drama", id: RANKING_IDS.turkishDrama },
     { title: "Yoruba Movies", id: RANKING_IDS.yorubaMovies },
-    { title: "Nollywood", id: RANKING_IDS.nollywood },
     { title: "Popular Series", id: RANKING_IDS.popularSeries },
   ];
 
