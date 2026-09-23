@@ -8,14 +8,21 @@ export function MoviePlayer({
   sea = 0,
   eps = 0,
   offlineBlob,
+  isSignedIn = false,
+  enforceSignInGate = false,
+  onSignInRequired,
 }: {
   detailPath: string;
   type?: number | string;
   sea?: number;
   eps?: number;
   offlineBlob?: Blob | null;
+  isSignedIn?: boolean;
+  enforceSignInGate?: boolean;
+  onSignInRequired?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const signInPromptedRef = useRef(false);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const src = useMemo(
     () =>
@@ -38,6 +45,20 @@ export function MoviePlayer({
       URL.revokeObjectURL(url);
     };
   }, [offlineBlob, src]);
+
+  useEffect(() => {
+    signInPromptedRef.current = false;
+  }, [detailPath, sea, eps]);
+
+  function requireSignIn(video: HTMLVideoElement) {
+    if (!enforceSignInGate || isSignedIn || video.currentTime < 180) return false;
+    video.pause();
+    if (!signInPromptedRef.current) {
+      signInPromptedRef.current = true;
+      onSignInRequired?.();
+    }
+    return true;
+  }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -83,6 +104,12 @@ export function MoviePlayer({
         playsInline
         className="aspect-video w-full bg-black"
         src={videoSrc ?? src}
+        onTimeUpdate={(event) => requireSignIn(event.currentTarget)}
+        onPlay={(event) => requireSignIn(event.currentTarget)}
+        onSeeking={(event) => {
+          const video = event.currentTarget;
+          if (requireSignIn(video)) video.currentTime = 180;
+        }}
       />
     </div>
   );

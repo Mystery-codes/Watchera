@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Trash2 } from "lucide-react";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
@@ -8,6 +8,8 @@ import { MovieCard } from "@/components/movie-card";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 import { SeasonEpisodePicker } from "@/components/season-episode-picker";
+import { AuthDialog } from "@/components/auth-dialog";
+import { createClient } from "@/lib/supabase/client";
 import {
   deleteDownloadedVideo,
   getDownloadedVideo,
@@ -30,6 +32,9 @@ export default function PopularSeriesPage() {
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [offlineRecord, setOfflineRecord] = useState<OfflineDownloadMeta | null>(null);
   const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const playbackPromptedRef = useRef(false);
 
   useEffect(() => {
     fetch("/api/popular-series")
@@ -47,6 +52,30 @@ export default function PopularSeriesPage() {
         eps: isSeries ? episode : 0,
       })
     : "";
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setIsSignedIn(Boolean(data.user)));
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsSignedIn(Boolean(session?.user));
+      if (session?.user) setAuthOpen(false);
+    });
+    return () => subscription.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    playbackPromptedRef.current = false;
+  }, [selectedSeries, season, episode]);
+
+  function requireSignInForPlayback(video: HTMLVideoElement) {
+    if (isSignedIn || offlineBlob || video.currentTime < 180) return false;
+    video.pause();
+    if (!playbackPromptedRef.current) {
+      playbackPromptedRef.current = true;
+      setAuthOpen(true);
+    }
+    return true;
+  }
 
   useEffect(() => {
     if (!selectedSeries || !playId) return;
@@ -99,6 +128,10 @@ export default function PopularSeriesPage() {
 
   async function handleDownloadToDevice() {
     if (!selectedSeries) return;
+    if (!isSignedIn) {
+      setAuthOpen(true);
+      return;
+    }
     const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
 
     setDownloading(true);
@@ -150,6 +183,10 @@ export default function PopularSeriesPage() {
 
   async function handleDownloadToWatchera() {
     if (!selectedSeries) return;
+    if (!isSignedIn) {
+      setAuthOpen(true);
+      return;
+    }
     if (offlineRecord) {
       return;
     }
@@ -265,6 +302,12 @@ export default function PopularSeriesPage() {
                   autoPlay
                   playsInline
                   className="aspect-video w-full bg-black"
+                  onTimeUpdate={(event) => requireSignInForPlayback(event.currentTarget)}
+                  onPlay={(event) => requireSignInForPlayback(event.currentTarget)}
+                  onSeeking={(event) => {
+                    const video = event.currentTarget;
+                    if (requireSignInForPlayback(video)) video.currentTime = 180;
+                  }}
                   src={
                     offlineBlob
                       ? URL.createObjectURL(offlineBlob)
@@ -393,6 +436,7 @@ export default function PopularSeriesPage() {
         </div>
       )}
 
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
 
       <Footer />
     </main>

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MoviePlayer } from "@/components/movie-player";
 import { SeasonEpisodePicker } from "@/components/season-episode-picker";
+import { AuthDialog } from "@/components/auth-dialog";
+import { createClient } from "@/lib/supabase/client";
 import {
   deleteDownloadedVideo,
   getDownloadedVideo,
@@ -48,6 +50,8 @@ export function MovieModal({
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [offlineRecord, setOfflineRecord] = useState<OfflineDownloadMeta | null>(null);
   const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   const displayMovie = {
     ...movie,
@@ -64,6 +68,16 @@ export function MovieModal({
     sea: isSeries ? season : 0,
     eps: isSeries ? episode : 0,
   });
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setIsSignedIn(Boolean(data.user)));
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsSignedIn(Boolean(session?.user));
+      if (session?.user) setAuthOpen(false);
+    });
+    return () => subscription.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!movie || !playId) return;
@@ -153,6 +167,10 @@ export function MovieModal({
 
   async function handleDownloadToDevice() {
     if (!movie) return;
+    if (!isSignedIn) {
+      setAuthOpen(true);
+      return;
+    }
     const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
 
     setDownloading(true);
@@ -204,6 +222,10 @@ export function MovieModal({
 
   async function handleDownloadToWatchera() {
     if (!movie) return;
+    if (!isSignedIn) {
+      setAuthOpen(true);
+      return;
+    }
     if (offlineRecord) {
       return;
     }
@@ -314,6 +336,9 @@ export function MovieModal({
             sea={isSeries ? season : 0}
             eps={isSeries ? episode : 0}
             offlineBlob={offlineBlob}
+            isSignedIn={isSignedIn}
+            enforceSignInGate={!offlineBlob}
+            onSignInRequired={() => setAuthOpen(true)}
           />
         ) : (
           <div className="relative aspect-video w-full">
@@ -459,6 +484,7 @@ export function MovieModal({
         </div>
       </div>
 
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }
