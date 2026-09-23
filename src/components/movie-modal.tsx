@@ -15,14 +15,6 @@ import {
   saveDownloadedVideo,
   type OfflineDownloadMeta,
 } from "@/lib/offline-downloads";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 export function MovieModal({
   movie,
@@ -56,7 +48,6 @@ export function MovieModal({
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [offlineRecord, setOfflineRecord] = useState<OfflineDownloadMeta | null>(null);
   const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
-  const [downloadChoiceOpen, setDownloadChoiceOpen] = useState(false);
 
   const displayMovie = {
     ...movie,
@@ -166,7 +157,6 @@ export function MovieModal({
 
     setDownloading(true);
     setDownloadProgress(null);
-    setDownloadChoiceOpen(false);
 
     try {
       const response = await fetch(downloadUrl);
@@ -215,7 +205,6 @@ export function MovieModal({
   async function handleDownloadToWatchera() {
     if (!movie) return;
     if (offlineRecord) {
-      setDownloadChoiceOpen(false);
       return;
     }
 
@@ -223,7 +212,6 @@ export function MovieModal({
 
     setDownloading(true);
     setDownloadProgress(null);
-    setDownloadChoiceOpen(false);
 
     let timeoutId: NodeJS.Timeout | null = null;
     try {
@@ -377,6 +365,15 @@ export function MovieModal({
             <Button variant="secondary" size="icon" aria-label="Like">
               <ThumbsUp className="size-4" />
             </Button>
+            <Button
+              variant="secondary"
+              onClick={handleDownloadToDevice}
+              disabled={downloading || !streamEnabled}
+              className="flex items-center gap-2"
+            >
+              <Download className="size-4" />
+              <span>{downloading ? `${downloadProgress ?? 0}%` : "Download to device"}</span>
+            </Button>
             {offlineRecord ? (
               <Button
                 variant="secondary"
@@ -390,9 +387,8 @@ export function MovieModal({
             ) : (
               <Button
                 variant="secondary"
-                onClick={() => setDownloadChoiceOpen(true)}
+                onClick={handleDownloadToWatchera}
                 disabled={downloading || !streamEnabled}
-                aria-label="Choose download destination"
                 className="flex items-center gap-2"
               >
                 {downloading ? (
@@ -422,7 +418,7 @@ export function MovieModal({
                 ) : (
                   <>
                     <Download className="size-4" />
-                    <span>Download</span>
+                    <span>Download to Watchera</span>
                   </>
                 )}
               </Button>
@@ -463,31 +459,6 @@ export function MovieModal({
         </div>
       </div>
 
-      <Dialog open={downloadChoiceOpen} onOpenChange={setDownloadChoiceOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Choose download destination</DialogTitle>
-            <DialogDescription>
-              Save this title to your device or keep it inside Watchera for offline viewing.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <Button onClick={handleDownloadToDevice} className="justify-center">
-              <Download className="size-4" />
-              Download to device
-            </Button>
-            <Button variant="secondary" onClick={handleDownloadToWatchera} className="justify-center">
-              <Download className="size-4" />
-              Download to Watchera
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDownloadChoiceOpen(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

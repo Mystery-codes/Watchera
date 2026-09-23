@@ -15,14 +15,6 @@ import {
   saveDownloadedVideo,
   type OfflineDownloadMeta,
 } from "@/lib/offline-downloads";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 export default function PopularSeriesPage() {
   const [series, setSeries] = useState<Movie[]>([]);
@@ -38,7 +30,6 @@ export default function PopularSeriesPage() {
   const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
   const [offlineRecord, setOfflineRecord] = useState<OfflineDownloadMeta | null>(null);
   const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
-  const [downloadChoiceOpen, setDownloadChoiceOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/popular-series")
@@ -112,7 +103,6 @@ export default function PopularSeriesPage() {
 
     setDownloading(true);
     setDownloadProgress(null);
-    setDownloadChoiceOpen(false);
 
     try {
       const response = await fetch(downloadUrl);
@@ -161,7 +151,6 @@ export default function PopularSeriesPage() {
   async function handleDownloadToWatchera() {
     if (!selectedSeries) return;
     if (offlineRecord) {
-      setDownloadChoiceOpen(false);
       return;
     }
 
@@ -169,7 +158,6 @@ export default function PopularSeriesPage() {
 
     setDownloading(true);
     setDownloadProgress(null);
-    setDownloadChoiceOpen(false);
 
     try {
       const response = await fetch(downloadUrl);
@@ -320,6 +308,15 @@ export default function PopularSeriesPage() {
                 <Button onClick={() => setIsPlaying(true)}>
                   ▶ Play
                 </Button>
+                <Button
+                  variant="secondary"
+                  onClick={handleDownloadToDevice}
+                  disabled={downloading}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="size-4" />
+                  <span>{downloading ? `${downloadProgress ?? 0}%` : "Download to device"}</span>
+                </Button>
                 {offlineRecord ? (
                   <Button
                     variant="secondary"
@@ -333,9 +330,8 @@ export default function PopularSeriesPage() {
                 ) : (
                   <Button
                     variant="secondary"
-                    onClick={() => setDownloadChoiceOpen(true)}
+                    onClick={handleDownloadToWatchera}
                     disabled={downloading}
-                    aria-label="Choose download destination"
                     className="flex items-center gap-2"
                   >
                     {downloading ? (
@@ -365,7 +361,7 @@ export default function PopularSeriesPage() {
                     ) : (
                       <>
                         <Download className="size-4" />
-                        <span>Download</span>
+                        <span>Download to Watchera</span>
                       </>
                     )}
                   </Button>
@@ -397,31 +393,6 @@ export default function PopularSeriesPage() {
         </div>
       )}
 
-      <Dialog open={downloadChoiceOpen} onOpenChange={setDownloadChoiceOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Choose download destination</DialogTitle>
-            <DialogDescription>
-              Save this title to your device or keep it inside Watchera for offline viewing.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 py-2">
-            <Button onClick={handleDownloadToDevice} className="justify-center">
-              <Download className="size-4" />
-              Download to device
-            </Button>
-            <Button variant="secondary" onClick={handleDownloadToWatchera} className="justify-center">
-              <Download className="size-4" />
-              Download to Watchera
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDownloadChoiceOpen(false)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Footer />
     </main>

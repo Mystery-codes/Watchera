@@ -14,8 +14,34 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Watchera — Stream Movies & TV Shows",
-  description: "Stream the latest movies and TV shows with Watchera.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: {
+    default: "Watchera | Movies and TV Shows",
+    template: "%s | Watchera",
+  },
+  description: "Discover movies, series, animation, and more on Watchera.",
+  applicationName: "Watchera",
+  keywords: ["movies", "TV shows", "series", "animation", "Nollywood", "K-drama"],
+  referrer: "origin-when-cross-origin",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "Watchera",
+    title: "Watchera | Movies and TV Shows",
+    description: "Discover movies, series, animation, and more on Watchera.",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Watchera" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Watchera | Movies and TV Shows",
+    description: "Discover movies, series, animation, and more on Watchera.",
+    images: ["/opengraph-image"],
+  },
   manifest: "/manifest.json",
   themeColor: "#e50914",
   appleWebApp: {

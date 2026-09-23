@@ -3,6 +3,11 @@ import { MovieBrowser } from "@/components/movie-browser";
 import { Footer } from "@/components/footer";
 import type { Movie } from "@/lib/movies";
 import { fetchRanking, RANKING_IDS } from "@/lib/plexhd";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function Home() {
   const popular = await fetchRanking(RANKING_IDS.popularMovies, 24);

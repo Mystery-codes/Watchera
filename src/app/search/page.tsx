@@ -3,6 +3,14 @@ import { Footer } from "@/components/footer";
 import { SearchContent } from "@/components/search-content";
 import type { Movie } from "@/lib/movies";
 import { fetchRanking, RANKING_IDS } from "@/lib/plexhd";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Search",
+  description: "Search Watchera for movies and TV shows.",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "/search" },
+};
 
 export default async function SearchPage({
   searchParams,

@@ -19,6 +19,7 @@ const links: { label: string; href: string }[] = [
   { label: "TV Series", href: "/popular-series" },
   { label: "Movies", href: "/search?q=Movies" },
   { label: "Animation", href: "/animation" },
+  { label: "Downloads", href: "/downloads" },
   { label: "Subscription", href: "#" },
 ];
 

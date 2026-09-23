@@ -8,7 +8,8 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         getAll() {
@@ -29,8 +30,9 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session and protect routes if needed.
-  await supabase.auth.getUser();
+  // Refresh the session. getClaims() validates the JWT without trusting
+  // unverified cookie data.
+  await supabase.auth.getClaims();
 
   return supabaseResponse;
 }
@@ -44,6 +46,6 @@ export const config = {
      * - favicon.ico (favicon file)
      * - public assets
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

@@ -36,15 +36,21 @@ export function AuthDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const showGoogleSignIn = false;
 
   useEffect(() => {
     if (open) {
       const saved = localStorage.getItem("watchera_email");
       if (saved) setEmail(saved);
+      setPassword("");
+      setError(null);
+      setMessage(null);
     }
   }, [open]);
 
@@ -56,18 +62,25 @@ export function AuthDialog({
 
     const supabase = createClient();
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin}/auth/callback`,
-      },
-    });
+    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin}/auth/callback`;
+    const { data, error } =
+      mode === "sign-up"
+        ? await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: redirectTo },
+          })
+        : await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message);
     } else {
       localStorage.setItem("watchera_email", email);
-      setMessage("Check your email for the sign-in link.");
+      if (mode === "sign-up" && !data.session) {
+        setMessage("Check your email to confirm your account, then sign in.");
+      } else {
+        onOpenChange(false);
+      }
     }
 
     setLoading(false);
@@ -97,11 +110,30 @@ export function AuthDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Sign in to Watchera</DialogTitle>
+          <DialogTitle>{mode === "sign-in" ? "Sign in to Watchera" : "Create your Watchera account"}</DialogTitle>
           <DialogDescription>
-            Enter your email and we&apos;ll send you a sign-in link.
+            {mode === "sign-in"
+              ? "Enter your email and password to continue."
+              : "Create an account with your email and a secure password."}
           </DialogDescription>
         </DialogHeader>
+
+        <div className="grid grid-cols-2 rounded-md bg-muted p-1">
+          <Button
+            type="button"
+            variant={mode === "sign-in" ? "secondary" : "ghost"}
+            onClick={() => setMode("sign-in")}
+          >
+            Sign in
+          </Button>
+          <Button
+            type="button"
+            variant={mode === "sign-up" ? "secondary" : "ghost"}
+            onClick={() => setMode("sign-up")}
+          >
+            Sign up
+          </Button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <Input
@@ -111,36 +143,36 @@ export function AuthDialog({
             onChange={(e) => setEmail(e.target.value)}
             required
           />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={6}
+            autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
+            required
+          />
 
           {error && <p className="text-sm text-destructive">{error}</p>}
           {message && <p className="text-sm text-green-500">{message}</p>}
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Sending link..." : "Continue with email"}
+            {loading ? "Please wait..." : mode === "sign-in" ? "Sign in" : "Create account"}
           </Button>
         </form>
 
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-zinc-700" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full gap-2"
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-        >
-          <GoogleIcon />
-          Google
-        </Button>
+        {showGoogleSignIn && (
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+          >
+            <GoogleIcon />
+            Google
+          </Button>
+        )}
       </DialogContent>
     </Dialog>
   );
