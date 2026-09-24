@@ -4,9 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Menu, LogOut, X, Download } from "lucide-react";
+import { Search, Menu, LogOut, X, Download, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { isAdmin } from "@/lib/admin";
 import { AuthDialog } from "@/components/auth-dialog";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -160,6 +161,15 @@ export function Navbar() {
               <span className="hidden max-w-[140px] truncate text-sm text-white sm:block">
                 {user.email}
               </span>
+              {isAdmin(user.email) && (
+                <Link
+                  href="/admin"
+                  title="Admin panel"
+                  className="grid size-8 place-items-center rounded-full border border-white/30 text-white hover:bg-white/10"
+                >
+                  <Shield className="size-4" />
+                </Link>
+              )}
               <button
                 onClick={handleSignOut}
                 title="Sign out"

@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isAdmin } from "@/lib/admin";
+
+function isAdminRoute(pathname: string): boolean {
+  return (
+    pathname.startsWith("/admin") || pathname.startsWith("/api/admin")
+  );
+}
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -32,7 +39,23 @@ export async function middleware(request: NextRequest) {
 
   // Refresh the session. getClaims() validates the JWT without trusting
   // unverified cookie data.
-  await supabase.auth.getClaims();
+  const { data: claimsData } = await supabase.auth.getClaims();
+
+  let userEmail: string | undefined;
+  if (claimsData?.claims?.email) {
+    userEmail = claimsData.claims.email as string;
+  } else {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    userEmail = user?.email ?? undefined;
+  }
+
+  // Protect admin routes — only the configured admin email may access them.
+  if (isAdminRoute(request.nextUrl.pathname) && !isAdmin(userEmail)) {
+    const redirectUrl = new URL("/", request.url);
+    return NextResponse.redirect(redirectUrl);
+  }
 
   return supabaseResponse;
 }
