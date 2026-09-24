@@ -25,6 +25,48 @@ function isPrivateIp(value: string): boolean {
   return false;
 }
 
+async function proxyStream(sourceUrl: string, request: NextRequest): Promise<NextResponse | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch(sourceUrl, {
+      cache: "no-store",
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; Watchera/1.0)",
+        "Accept": "*/*",
+        "Accept-Encoding": "identity",
+        "Range": request.headers.get("Range") ?? "",
+      },
+    });
+    clearTimeout(timeout);
+
+    if (res.ok && res.body) {
+      const contentType = res.headers.get("Content-Type") ?? "video/mp4";
+      const contentLength = res.headers.get("Content-Length");
+      const acceptRanges = res.headers.get("Accept-Ranges");
+      const contentRange = res.headers.get("Content-Range");
+
+      const headers: Record<string, string> = {
+        "Content-Type": contentType,
+        "Cache-Control": "no-store",
+        "Accept-Ranges": acceptRanges ?? "bytes",
+      };
+
+      if (contentLength) headers["Content-Length"] = contentLength;
+      if (contentRange) headers["Content-Range"] = contentRange;
+
+      return new NextResponse(res.body, {
+        status: res.status,
+        headers,
+      });
+    }
+  } catch (err) {
+    console.error("Direct stream proxy error:", err);
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const detailPath = request.nextUrl.searchParams.get("detailPath");
   if (!detailPath) {
@@ -45,52 +87,52 @@ export async function GET(request: NextRequest) {
 
   const best = [...source.streams].sort((a, b) => b.quality - a.quality)[0];
 
-  if (!STREAM_TOKEN) {
-    return NextResponse.json({ error: "Stream token missing" }, { status: 502 });
+  // Try direct CDN stream first (bypasses PlexHD proxy which returns 502 on Vercel)
+  const directProxy = await proxyStream(best.url, request);
+  if (directProxy) {
+    return directProxy;
   }
 
-  const upstream = `${API_URL}/api/stream/streaming-proxy?url=${encodeURIComponent(
-    best.url
-  )}&token=${encodeURIComponent(STREAM_TOKEN)}`;
+  // Fallback to PlexHD proxy if direct fails
+  if (STREAM_TOKEN) {
+    const upstream = `${API_URL}/api/stream/streaming-proxy?url=${encodeURIComponent(
+      best.url
+    )}&token=${encodeURIComponent(STREAM_TOKEN)}`;
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch(upstream, {
-      cache: "no-store",
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-
-    if (res.ok && res.body) {
-      return new NextResponse(res.body, {
-        status: 200,
-        headers: {
-          "Content-Type": res.headers.get("Content-Type") ?? "video/mp4",
-          "Content-Length": res.headers.get("Content-Length") ?? "",
-          "Cache-Control": "no-store",
-          "Accept-Ranges": "bytes",
-        },
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+      const res = await fetch(upstream, {
+        cache: "no-store",
+        signal: controller.signal,
       });
-    }
+      clearTimeout(timeout);
 
-  console.error("Stream proxy responded with status:", res.status, "for", detailPath, "streamUrl:", best.url, "isPrivate:", isPrivateIp(best.url));
-  if (isPrivateIp(best.url)) {
-    return NextResponse.json(
-      { error: "Stream source is unavailable. Please try again later." },
-      { status: 503 }
-    );
+      if (res.ok && res.body) {
+        return new NextResponse(res.body, {
+          status: 200,
+          headers: {
+            "Content-Type": res.headers.get("Content-Type") ?? "video/mp4",
+            "Content-Length": res.headers.get("Content-Length") ?? "",
+            "Cache-Control": "no-store",
+            "Accept-Ranges": "bytes",
+          },
+        });
+      }
+
+      console.error("PlexHD proxy responded with status:", res.status, "for", detailPath);
+    } catch (err) {
+      console.error("PlexHD proxy error for", detailPath, err);
+    }
   }
 
-  return NextResponse.redirect(best.url, 302);
-  } catch (err) {
-    console.error("Streaming error for", detailPath, "streamUrl:", best.url, "isPrivate:", isPrivateIp(best.url), err);
-    if (isPrivateIp(best.url)) {
-      return NextResponse.json(
-        { error: "Stream source is unavailable. Please try again later." },
-        { status: 503 }
-      );
-    }
+  // Final fallback: redirect to direct URL
+  if (!isPrivateIp(best.url)) {
     return NextResponse.redirect(best.url, 302);
   }
+
+  return NextResponse.json(
+    { error: "Stream source is unavailable. Please try again later." },
+    { status: 503 }
+  );
 }
