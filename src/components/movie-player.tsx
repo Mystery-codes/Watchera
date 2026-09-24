@@ -23,8 +23,9 @@ export function MoviePlayer({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const signInPromptedRef = useRef(false);
-  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoSrc, setVideoSrc] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const apiUrl = useMemo(
     () =>
@@ -44,19 +45,35 @@ export function MoviePlayer({
 
     let cancelled = false;
     setLoading(true);
+    setError(null);
 
     fetch(apiUrl)
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to get stream URL");
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();
       })
       .then((data) => {
         if (!cancelled && data.proxyUrl) {
-          setVideoSrc(data.proxyUrl);
+          console.log("Got proxy URL:", data.proxyUrl);
+          // Test the proxy URL first
+          fetch(data.proxyUrl, { method: "HEAD" })
+            .then((r) => {
+              console.log("Proxy HEAD response:", r.status, r.headers.get("Content-Type"));
+              if (r.ok && r.headers.get("Content-Type")?.startsWith("video/")) {
+                setVideoSrc(data.proxyUrl);
+              } else {
+                throw new Error(`Proxy returned ${r.status} ${r.headers.get("Content-Type")}`);
+              }
+            })
+            .catch((err) => {
+              console.error("Proxy test failed:", err);
+              if (!cancelled) setError(err.message);
+            });
         }
       })
       .catch((err) => {
         console.error("Stream URL fetch error:", err);
+        if (!cancelled) setError(err.message);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -117,20 +134,26 @@ export function MoviePlayer({
   }, []);
 
   return (
-    <div className="overflow-hidden rounded-lg bg-black">
-      {loading && <div className="absolute inset-0 flex items-center justify-center bg-black"><div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent" /></div>}
+    <div className="relative overflow-hidden rounded-lg bg-black">
+      {loading && <div className="absolute inset-0 flex items-center justify-center bg-black z-10"><div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent" /></div>}
+      {error && <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10 text-red-400 p-4 text-center">{error}</div>}
       <video
         ref={videoRef}
         controls
         autoPlay
         playsInline
         className="aspect-video w-full bg-black"
-        src={videoSrc ?? ""}
+        src={videoSrc}
         onTimeUpdate={(event) => requireSignIn(event.currentTarget)}
         onPlay={(event) => requireSignIn(event.currentTarget)}
         onSeeking={(event) => {
           const video = event.currentTarget;
           if (requireSignIn(video)) video.currentTime = 180;
+        }}
+        onError={(e) => {
+          const video = e.currentTarget;
+          console.error("Video error:", video.error);
+          setError(`Playback failed: ${video.error?.message || "Unknown error"}`);
         }}
       />
     </div>
