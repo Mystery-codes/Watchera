@@ -10,7 +10,7 @@ export interface AuditLogEntry {
 export async function logAdminAction(entry: AuditLogEntry): Promise<void> {
   try {
     const admin = getAdminClient();
-    const { error } = await (admin.from("admin_audit_log") as any).insert([
+    const { error } = await admin.from("admin_audit_log").insert([
       {
         action: entry.action,
         target_user_id: entry.targetUserId,

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { MovieCard } from "@/components/movie-card";
@@ -317,10 +318,12 @@ export default function PopularSeriesPage() {
               </div>
             ) : (
               <div className="relative aspect-video w-full">
-                <img
+                <Image
                   src={selectedSeries.banner}
                   alt={selectedSeries.title}
-                  className="h-full w-full object-cover"
+                  fill
+                  className="object-cover"
+                  priority
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
               </div>

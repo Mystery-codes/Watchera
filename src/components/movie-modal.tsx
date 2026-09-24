@@ -154,7 +154,7 @@ export function MovieModal({
     return () => {
       cancelled = true;
     };
-  }, [isSeries, movie?.detailPath, movie?.subjectId, movie?.id]);
+  }, [isSeries, movie?.detailPath, movie?.subjectId, movie?.id, movie]);
 
   function handleSeasonChange(s: number) {
     setSeason(s);
