@@ -24,7 +24,9 @@ export function MoviePlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const signInPromptedRef = useRef(false);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
-  const src = useMemo(
+  const [loading, setLoading] = useState(true);
+
+  const apiUrl = useMemo(
     () =>
       `/api/play?detailPath=${encodeURIComponent(
         detailPath
@@ -33,18 +35,37 @@ export function MoviePlayer({
   );
 
   useEffect(() => {
-    if (!offlineBlob) {
-      setVideoSrc(src);
-      return;
+    if (offlineBlob) {
+      const url = URL.createObjectURL(offlineBlob);
+      setVideoSrc(url);
+      setLoading(false);
+      return () => URL.revokeObjectURL(url);
     }
 
-    const url = URL.createObjectURL(offlineBlob);
-    setVideoSrc(url);
+    let cancelled = false;
+    setLoading(true);
+
+    fetch(apiUrl)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to get stream URL");
+        return res.json();
+      })
+      .then((data) => {
+        if (!cancelled && data.proxyUrl) {
+          setVideoSrc(data.proxyUrl);
+        }
+      })
+      .catch((err) => {
+        console.error("Stream URL fetch error:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
-      URL.revokeObjectURL(url);
+      cancelled = true;
     };
-  }, [offlineBlob, src]);
+  }, [apiUrl, offlineBlob]);
 
   useEffect(() => {
     signInPromptedRef.current = false;
@@ -97,13 +118,14 @@ export function MoviePlayer({
 
   return (
     <div className="overflow-hidden rounded-lg bg-black">
+      {loading && <div className="absolute inset-0 flex items-center justify-center bg-black"><div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent" /></div>}
       <video
         ref={videoRef}
         controls
         autoPlay
         playsInline
         className="aspect-video w-full bg-black"
-        src={videoSrc ?? src}
+        src={videoSrc ?? ""}
         onTimeUpdate={(event) => requireSignIn(event.currentTarget)}
         onPlay={(event) => requireSignIn(event.currentTarget)}
         onSeeking={(event) => {
