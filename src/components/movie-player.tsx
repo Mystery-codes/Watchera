@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const PLEXHD_API_URL = process.env.NEXT_PUBLIC_PLEXHD_API_URL ?? "https://streamapinuxt.hdplexv.workers.dev";
+const PLEXHD_STREAM_TOKEN = process.env.NEXT_PUBLIC_PLEXHD_STREAM_TOKEN ?? "";
+const PLEXHD_API_KEY = process.env.NEXT_PUBLIC_PLEXHD_API_KEY ?? "";
 
 export function MoviePlayer({
   detailPath,
@@ -27,13 +31,9 @@ export function MoviePlayer({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const apiUrl = useMemo(
-    () =>
-      `/api/play?detailPath=${encodeURIComponent(
-        detailPath
-      )}&type=${encodeURIComponent(type)}&sea=${encodeURIComponent(sea)}&eps=${encodeURIComponent(eps)}`,
-    [detailPath, type, sea, eps]
-  );
+  const isSeries = Number(type) === 2;
+  const season = isSeries ? Number(sea) : 0;
+  const episode = isSeries ? Number(eps) : 0;
 
   useEffect(() => {
     if (offlineBlob) {
@@ -47,42 +47,65 @@ export function MoviePlayer({
     setLoading(true);
     setError(null);
 
-    fetch(apiUrl)
-      .then((res) => {
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        if (!cancelled && data.proxyUrl) {
-          console.log("Got proxy URL:", data.proxyUrl);
-          // Test the proxy URL first
-          fetch(data.proxyUrl, { method: "HEAD" })
-            .then((r) => {
-              console.log("Proxy HEAD response:", r.status, r.headers.get("Content-Type"));
-              if (r.ok && r.headers.get("Content-Type")?.startsWith("video/")) {
-                setVideoSrc(data.proxyUrl);
-              } else {
-                throw new Error(`Proxy returned ${r.status} ${r.headers.get("Content-Type")}`);
-              }
-            })
-            .catch((err) => {
-              console.error("Proxy test failed:", err);
-              if (!cancelled) setError(err.message);
-            });
+    async function fetchStream() {
+      try {
+        // Fetch video source directly from PlexHD
+        const vidSourceRes = await fetch(
+          `${PLEXHD_API_URL}/api/stream/vid-source?detailPath=${encodeURIComponent(detailPath)}&sea=${season}&eps=${episode}`,
+          {
+            headers: { "X-AUTH-KEY": PLEXHD_API_KEY },
+            signal: AbortSignal.timeout(30000),
+          }
+        );
+
+        if (!vidSourceRes.ok) throw new Error(`Failed to fetch video source: ${vidSourceRes.status}`);
+
+        const data = await vidSourceRes.json();
+        const streams: { id: string; quality: number; url: string }[] = (data.stream ?? []).map(
+          (s: { id: string; quality: number; url: string }) => ({
+            id: s.id,
+            quality: s.quality,
+            url: s.url,
+          })
+        );
+
+        if (streams.length === 0) throw new Error("No streams available");
+
+        // Sort by quality descending and pick best
+        const best = [...streams].sort((a, b) => b.quality - a.quality)[0];
+
+        if (!PLEXHD_STREAM_TOKEN) throw new Error("Stream token missing");
+
+        // Build PlexHD proxy URL
+        const proxyUrl = `${PLEXHD_API_URL}/api/stream/streaming-proxy?url=${encodeURIComponent(best.url)}&token=${encodeURIComponent(PLEXHD_STREAM_TOKEN)}`;
+
+        console.log("Got proxy URL:", proxyUrl);
+
+        // Test the proxy URL first
+        const headRes = await fetch(proxyUrl, { method: "HEAD" });
+        console.log("Proxy HEAD response:", headRes.status, headRes.headers.get("Content-Type"));
+
+        if (!cancelled) {
+          if (headRes.ok && headRes.headers.get("Content-Type")?.startsWith("video/")) {
+            setVideoSrc(proxyUrl);
+          } else {
+            throw new Error(`Proxy returned ${headRes.status} ${headRes.headers.get("Content-Type")}`);
+          }
         }
-      })
-      .catch((err) => {
-        console.error("Stream URL fetch error:", err);
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
+      } catch (err) {
+        console.error("Stream fetch error:", err);
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    }
+
+    fetchStream();
 
     return () => {
       cancelled = true;
     };
-  }, [apiUrl, offlineBlob]);
+  }, [detailPath, season, episode, offlineBlob]);
 
   useEffect(() => {
     signInPromptedRef.current = false;
