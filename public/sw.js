@@ -4,6 +4,22 @@ const STATIC_ASSETS = [
   "/manifest.json",
 ];
 
+// URLs that should NOT be cached (video streams, API calls, etc.)
+const NO_CACHE_PATTERNS = [
+  /\/api\/play/,           // Our play API
+  /streaming-proxy/,       // PlexHD streaming proxy
+  /\.m3u8/,                // HLS playlists
+  /\.mp4/,                 // Direct MP4
+  /\/stream\//,            // Any stream path
+  /\.ts$/,                 // TS segments
+];
+
+function shouldCache(request) {
+  if (request.method !== "GET") return false;
+  const url = request.url;
+  return !NO_CACHE_PATTERNS.some(pattern => pattern.test(url));
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -27,8 +43,15 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
+  // Skip non-GET requests
   if (request.method !== "GET") return;
 
+  // Skip caching for video streams and API calls
+  if (!shouldCache(request)) {
+    return; // Let browser handle directly
+  }
+
+  // Handle image requests with cache-first strategy
   if (request.destination === "image") {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
@@ -46,6 +69,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // Handle other requests (pages, scripts, styles) with cache-first
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

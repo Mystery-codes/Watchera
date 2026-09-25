@@ -144,6 +144,7 @@ export function MoviePlayer({
         playsInline
         className="aspect-video w-full bg-black"
         src={videoSrc}
+        crossOrigin="anonymous"
         onTimeUpdate={(event) => requireSignIn(event.currentTarget)}
         onPlay={(event) => requireSignIn(event.currentTarget)}
         onSeeking={(event) => {
