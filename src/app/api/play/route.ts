@@ -14,8 +14,11 @@ export async function GET(request: NextRequest) {
   const sea = isSeries ? Number(request.nextUrl.searchParams.get("sea") ?? "1") : 0;
   const eps = isSeries ? Number(request.nextUrl.searchParams.get("eps") ?? "1") : 0;
 
+  console.log("[/api/play] Fetching vid-source for:", detailPath, { isSeries, sea, eps });
+
   const source = await fetchVidSource(detailPath, isSeries, sea, eps);
   if (!source || source.streams.length === 0) {
+    console.log("[/api/play] No streams found");
     return NextResponse.json(
       { error: "No stream available" },
       { status: 404 }
@@ -24,8 +27,10 @@ export async function GET(request: NextRequest) {
 
   // Return the best stream URL for client-side proxying
   const best = [...source.streams].sort((a, b) => b.quality - a.quality)[0];
-  
+  console.log("[/api/play] Best stream:", best.quality, best.url.substring(0, 80) + "...");
+
   if (!STREAM_TOKEN) {
+    console.error("[/api/play] Stream token missing");
     return NextResponse.json({ error: "Stream token missing" }, { status: 502 });
   }
 
@@ -33,6 +38,8 @@ export async function GET(request: NextRequest) {
   const proxyUrl = `${API_URL}/api/stream/streaming-proxy?url=${encodeURIComponent(
     best.url
   )}&token=${encodeURIComponent(STREAM_TOKEN)}`;
+
+  console.log("[/api/play] Proxy URL:", proxyUrl);
 
   return NextResponse.json({ proxyUrl, quality: best.quality });
 }
