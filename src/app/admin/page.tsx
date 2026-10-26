@@ -377,6 +377,7 @@ export default function AdminPage() {
               <tr>
                 <th className="px-4 py-3 font-medium text-zinc-300">Status</th>
                 <th className="px-4 py-3 font-medium text-zinc-300">Email</th>
+                <th className="px-4 py-3 font-medium text-zinc-300">Full Name</th>
                 <th className="px-4 py-3 font-medium text-zinc-300">Confirmed</th>
                 <th className="px-4 py-3 font-medium text-zinc-300">Created</th>
                 <th className="px-4 py-3 font-medium text-zinc-300">Last Sign In</th>
@@ -388,13 +389,13 @@ export default function AdminPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     Loading users...
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                     No users found.
                   </td>
                 </tr>
@@ -411,6 +412,9 @@ export default function AdminPage() {
                       <span className="block max-w-[240px] truncate font-mono text-xs text-white">
                         {user.email ?? "—"}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {String(user.userMetadata?.full_name ?? "—")}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {formatDate(user.emailConfirmedAt)}

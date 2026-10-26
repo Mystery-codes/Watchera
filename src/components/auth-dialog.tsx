@@ -39,6 +39,7 @@ export function AuthDialog({
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,6 +50,7 @@ export function AuthDialog({
       const saved = localStorage.getItem("watchera_email");
       if (saved) setEmail(saved);
       setPassword("");
+      setFullName("");
       setError(null);
       setMessage(null);
     }
@@ -68,7 +70,10 @@ export function AuthDialog({
         ? await supabase.auth.signUp({
             email,
             password,
-            options: { emailRedirectTo: redirectTo },
+            options: {
+              emailRedirectTo: redirectTo,
+              data: { full_name: fullName },
+            },
           })
         : await supabase.auth.signInWithPassword({ email, password });
 
@@ -136,6 +141,16 @@ export function AuthDialog({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          {mode === "sign-up" && (
+            <Input
+              type="text"
+              placeholder="Full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              autoComplete="name"
+              required
+            />
+          )}
           <Input
             type="email"
             placeholder="Email"

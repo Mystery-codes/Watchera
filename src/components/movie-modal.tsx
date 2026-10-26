@@ -171,7 +171,7 @@ export function MovieModal({
       setAuthOpen(true);
       return;
     }
-    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
+    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}&stream=1`;
 
     setDownloading(true);
     setDownloadProgress(null);
@@ -179,7 +179,8 @@ export function MovieModal({
     try {
       const response = await fetch(downloadUrl);
       if (!response.ok) {
-        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+        const message = await response.text().catch(() => response.statusText);
+        throw new Error(`Download failed: ${response.status} ${message}`);
       }
 
       const contentLength = Number(response.headers.get("Content-Length")) || 0;
@@ -210,7 +211,7 @@ export function MovieModal({
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       setDownloadProgress(null);
     } catch (err) {
       console.error("Download error:", err);
@@ -230,7 +231,7 @@ export function MovieModal({
       return;
     }
 
-    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}`;
+    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}&stream=1`;
 
     setDownloading(true);
     setDownloadProgress(null);
@@ -244,7 +245,8 @@ export function MovieModal({
       if (timeoutId) clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+        const message = await response.text().catch(() => response.statusText);
+        throw new Error(`Download failed: ${response.status} ${message}`);
       }
 
       const contentLength = Number(response.headers.get("Content-Length")) || 0;
@@ -394,7 +396,7 @@ export function MovieModal({
               variant="secondary"
               onClick={handleDownloadToDevice}
               disabled={downloading || !streamEnabled}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border border-primary/40 hover:border-primary hover:bg-primary/10"
             >
               <Download className="size-4" />
               <span>{downloading ? `${downloadProgress ?? 0}%` : "Download to device"}</span>
@@ -411,7 +413,7 @@ export function MovieModal({
               </Button>
             ) : (
               <Button
-                variant="secondary"
+                variant="default"
                 onClick={handleDownloadToWatchera}
                 disabled={downloading || !streamEnabled}
                 className="flex items-center gap-2"

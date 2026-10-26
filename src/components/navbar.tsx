@@ -146,16 +146,6 @@ export function Navbar() {
               onClick={() => setSearchOpen(true)}
             />
           )}
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen((prev) => !prev)}
-            className="grid size-8 place-items-center rounded-md text-zinc-300 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
-
           {user ? (
             <div className="flex items-center gap-3">
               <span className="hidden max-w-[140px] truncate text-sm text-white sm:block">
@@ -197,6 +187,16 @@ export function Navbar() {
               </button>
             </>
           )}
+
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="grid size-8 place-items-center rounded-md text-zinc-300 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
         </div>
       </nav>
 
