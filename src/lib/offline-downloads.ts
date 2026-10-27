@@ -11,13 +11,29 @@ export type OfflineDownloadMeta = {
   url?: string;
 };
 
+export type OfflineQueueStatus = "queued" | "downloading" | "completed" | "failed";
+
+export type OfflineQueueItem = {
+  key: string;
+  title: string;
+  detailPath: string;
+  type: number | string;
+  sea: number;
+  eps: number;
+  createdAt: number;
+  status: OfflineQueueStatus;
+  progress: number | null;
+  error?: string;
+};
+
 type OfflineDownloadRecord = OfflineDownloadMeta & {
   blob: Blob;
 };
 
 const DB_NAME = "watchera-offline";
 const STORE_NAME = "downloads";
-const DB_VERSION = 1;
+const QUEUE_STORE_NAME = "download-queue";
+const DB_VERSION = 2;
 
 export function getOfflineVideoKey({
   detailPath,
@@ -48,8 +64,50 @@ function openOfflineDb(): Promise<IDBDatabase> {
         const store = db.createObjectStore(STORE_NAME, { keyPath: "key" });
         store.createIndex("createdAt", "createdAt");
       }
+      if (!db.objectStoreNames.contains(QUEUE_STORE_NAME)) {
+        db.createObjectStore(QUEUE_STORE_NAME, { keyPath: "key" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
+  });
+}
+
+export async function listOfflineQueue(): Promise<OfflineQueueItem[]> {
+  const db = await openOfflineDb();
+
+  return await new Promise((resolve, reject) => {
+    const transaction = db.transaction(QUEUE_STORE_NAME, "readonly");
+    const request = transaction.objectStore(QUEUE_STORE_NAME).getAll();
+
+    request.onerror = () => reject(request.error ?? new Error("Failed to load download queue."));
+    request.onsuccess = () => {
+      const items = (request.result as OfflineQueueItem[] | undefined) ?? [];
+      resolve(items.sort((a, b) => a.createdAt - b.createdAt));
+    };
+  });
+}
+
+export async function saveOfflineQueueItem(item: OfflineQueueItem): Promise<void> {
+  const db = await openOfflineDb();
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(QUEUE_STORE_NAME, "readwrite");
+    const request = transaction.objectStore(QUEUE_STORE_NAME).put(item);
+
+    request.onerror = () => reject(request.error ?? new Error("Failed to update download queue."));
+    request.onsuccess = () => resolve();
+  });
+}
+
+export async function deleteOfflineQueueItem(key: string): Promise<void> {
+  const db = await openOfflineDb();
+
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(QUEUE_STORE_NAME, "readwrite");
+    const request = transaction.objectStore(QUEUE_STORE_NAME).delete(key);
+
+    request.onerror = () => reject(request.error ?? new Error("Failed to remove queue item."));
+    request.onsuccess = () => resolve();
   });
 }
 

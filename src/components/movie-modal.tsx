@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { MoviePlayer } from "@/components/movie-player";
 import { SeasonEpisodePicker } from "@/components/season-episode-picker";
 import { AuthDialog } from "@/components/auth-dialog";
+import { useDownloadQueue } from "@/components/download-queue-provider";
 import { createClient } from "@/lib/supabase/client";
 import {
   deleteDownloadedVideo,
   getDownloadedVideo,
   getOfflineVideoKey,
-  saveDownloadedVideo,
   type OfflineDownloadMeta,
 } from "@/lib/offline-downloads";
 
@@ -52,6 +52,7 @@ export function MovieModal({
   const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const { items: queueItems, ready: queueReady, enqueue } = useDownloadQueue();
 
   const displayMovie = {
     ...movie,
@@ -68,6 +69,7 @@ export function MovieModal({
     sea: isSeries ? season : 0,
     eps: isSeries ? episode : 0,
   });
+  const queueItem = queueItems.find((item) => item.key === offlineKey);
 
   useEffect(() => {
     const supabase = createClient();
@@ -95,6 +97,19 @@ export function MovieModal({
         setOfflineBlob(null);
       });
   }, [movie, offlineKey, playId]);
+
+  useEffect(() => {
+    if (queueItem?.status !== "completed") return;
+    let cancelled = false;
+    getDownloadedVideo(offlineKey).then((record) => {
+      if (cancelled || !record) return;
+      setOfflineRecord({ ...record, url: record.url ?? "" });
+      setOfflineBlob(record.blob ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [queueItem?.status, offlineKey]);
 
   useEffect(() => {
     if (!movie) return;
@@ -227,76 +242,20 @@ export function MovieModal({
       setAuthOpen(true);
       return;
     }
-    if (offlineRecord) {
-      return;
-    }
+    if (offlineRecord || !queueReady) return;
 
-    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(displayMovie.subjectType ?? movie.subjectType ?? 1)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}&stream=1`;
-
-    setDownloading(true);
-    setDownloadProgress(null);
-
-    let timeoutId: NodeJS.Timeout | null = null;
     try {
-      const controller = new AbortController();
-      timeoutId = setTimeout(() => controller.abort(), 120000);
-
-      const response = await fetch(downloadUrl, { signal: controller.signal });
-      if (timeoutId) clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const message = await response.text().catch(() => response.statusText);
-        throw new Error(`Download failed: ${response.status} ${message}`);
-      }
-
-      const contentLength = Number(response.headers.get("Content-Length")) || 0;
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Streaming not supported in this browser");
-      }
-
-      const chunks: Uint8Array[] = [];
-      let received = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        received += value.length;
-        if (contentLength > 0) {
-          setDownloadProgress(Math.round((received / contentLength) * 100));
-        }
-      }
-
-      const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
-      const saved = await saveDownloadedVideo(
-        {
-          key: offlineKey,
-          title: displayMovie.title ?? movie.title,
-          detailPath: playId,
-          type: displayMovie.subjectType ?? movie.subjectType ?? 1,
-          sea: isSeries ? season : 0,
-          eps: isSeries ? episode : 0,
-        },
-        blob
-      );
-
-      setOfflineRecord(saved);
-      setOfflineBlob(blob);
-      setDownloadProgress(null);
-      await onDownloadChange?.();
+      await enqueue({
+        key: offlineKey,
+        title: displayMovie.title ?? movie.title,
+        detailPath: playId,
+        type: displayMovie.subjectType ?? movie.subjectType ?? 1,
+        sea: isSeries ? season : 0,
+        eps: isSeries ? episode : 0,
+      });
     } catch (err) {
-      if (timeoutId) clearTimeout(timeoutId);
       console.error("Download error:", err);
-      const errorMsg =
-        err instanceof Error
-          ? err.message.includes("abort")
-            ? "Download timed out. Please try again."
-            : err.message
-          : "Download failed";
-      alert(errorMsg);
-    } finally {
-      setDownloading(false);
+      alert(err instanceof Error ? err.message : "Could not add download to queue.");
     }
   }
 

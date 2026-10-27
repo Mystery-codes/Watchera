@@ -10,12 +10,12 @@ import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 import { SeasonEpisodePicker } from "@/components/season-episode-picker";
 import { AuthDialog } from "@/components/auth-dialog";
+import { useDownloadQueue } from "@/components/download-queue-provider";
 import { createClient } from "@/lib/supabase/client";
 import {
   deleteDownloadedVideo,
   getDownloadedVideo,
   getOfflineVideoKey,
-  saveDownloadedVideo,
   type OfflineDownloadMeta,
 } from "@/lib/offline-downloads";
 
@@ -36,6 +36,7 @@ export default function PopularSeriesPage() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const playbackPromptedRef = useRef(false);
+  const { ready: queueReady, enqueue } = useDownloadQueue();
 
   useEffect(() => {
     fetch("/api/popular-series")
@@ -94,6 +95,19 @@ export default function PopularSeriesPage() {
         setOfflineBlob(null);
       });
   }, [selectedSeries, playId, offlineKey]);
+
+  useEffect(() => {
+    function refreshOfflineRecord() {
+      if (!selectedSeries || !offlineKey) return;
+      getDownloadedVideo(offlineKey).then((record) => {
+        if (!record) return;
+        setOfflineRecord({ ...record, url: record.url ?? "" });
+        setOfflineBlob(record.blob ?? null);
+      });
+    }
+    window.addEventListener("watchera:downloads-changed", refreshOfflineRecord);
+    return () => window.removeEventListener("watchera:downloads-changed", refreshOfflineRecord);
+  }, [selectedSeries, offlineKey]);
 
   function openPlayer(m: Movie) {
     setSelectedSeries(m);
@@ -189,62 +203,20 @@ export default function PopularSeriesPage() {
       setAuthOpen(true);
       return;
     }
-    if (offlineRecord) {
-      return;
-    }
-
-    const downloadUrl = `/api/play?detailPath=${encodeURIComponent(playId)}&type=${encodeURIComponent(selectedSeries.subjectType ?? 2)}&sea=${encodeURIComponent(isSeries ? season : 0)}&eps=${encodeURIComponent(isSeries ? episode : 0)}&stream=1`;
-
-    setDownloading(true);
-    setDownloadProgress(null);
+    if (offlineRecord || !queueReady) return;
 
     try {
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        const message = await response.text().catch(() => response.statusText);
-        throw new Error(`Download failed: ${response.status} ${message}`);
-      }
-
-      const contentLength = Number(response.headers.get("Content-Length")) || 0;
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Streaming not supported in this browser");
-      }
-
-      const chunks: Uint8Array[] = [];
-      let received = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        received += value.length;
-        if (contentLength > 0) {
-          setDownloadProgress(Math.round((received / contentLength) * 100));
-        }
-      }
-
-      const blob = new Blob(chunks as BlobPart[], { type: "video/mp4" });
-      const saved = await saveDownloadedVideo(
-        {
-          key: offlineKey,
-          title: selectedSeries.title,
-          detailPath: playId,
-          type: selectedSeries.subjectType ?? 2,
-          sea: isSeries ? season : 0,
-          eps: isSeries ? episode : 0,
-        },
-        blob
-      );
-
-      setOfflineRecord(saved);
-      setOfflineBlob(blob);
-      setDownloadProgress(null);
+      await enqueue({
+        key: offlineKey,
+        title: selectedSeries.title,
+        detailPath: playId,
+        type: selectedSeries.subjectType ?? 2,
+        sea: isSeries ? season : 0,
+        eps: isSeries ? episode : 0,
+      });
     } catch (err) {
       console.error("Download error:", err);
-      alert(err instanceof Error ? err.message : "Download failed");
-    } finally {
-      setDownloading(false);
+      alert(err instanceof Error ? err.message : "Could not add download to queue.");
     }
   }
 
@@ -379,39 +351,11 @@ export default function PopularSeriesPage() {
                   <Button
                     variant="default"
                     onClick={handleDownloadToWatchera}
-                    disabled={downloading}
+                    disabled={!queueReady || downloading}
                     className="flex items-center gap-2"
                   >
-                    {downloading ? (
-                      <>
-                        <svg
-                          className="-ml-1 size-4 animate-spin"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 8 0 16 8 8 0 0 8-8-16z"
-                          />
-                        </svg>
-                        <span>{downloadProgress ?? 0}%</span>
-                      </>
-                    ) : (
-                      <>
-                        <Download className="size-4" />
-                        <span>Download to Watchera</span>
-                      </>
-                    )}
+                    <Download className="size-4" />
+                    <span>Download to Watchera</span>
                   </Button>
                 )}
               </div>

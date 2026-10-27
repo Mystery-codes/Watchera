@@ -40,6 +40,8 @@ export function MovieBrowser({
 
   useEffect(() => {
     void refreshDownloads();
+    window.addEventListener("watchera:downloads-changed", refreshDownloads);
+    return () => window.removeEventListener("watchera:downloads-changed", refreshDownloads);
   }, []);
 
   return (
