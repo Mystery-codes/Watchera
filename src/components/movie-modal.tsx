@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Play, Plus, ThumbsUp, X, Download, Trash2 } from "lucide-react";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
   getOfflineVideoKey,
   type OfflineDownloadMeta,
 } from "@/lib/offline-downloads";
+import { createItemRoute } from "@/lib/seo";
 
 export function MovieModal({
   movie,
@@ -342,6 +344,11 @@ export function MovieModal({
           )}
 
           <div className="flex flex-wrap items-center gap-3">
+            <Button asChild variant="outline">
+              <Link href={createItemRoute(displayMovie, displayMovie.subjectType === 2 ? "series" : "movie")}>
+                View details
+              </Link>
+            </Button>
             <Button disabled={!streamEnabled && !offlineBlob}>
               <Play className="size-4 fill-white" /> Play
             </Button>
