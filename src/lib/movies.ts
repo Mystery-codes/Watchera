@@ -11,6 +11,7 @@ export type Movie = {
   trending?: boolean;
   subjectId?: string;
   detailPath?: string;
+  releaseDate?: string;
   // 1 = movie, 2 = series (from the PlexHD API)
   subjectType?: number;
 };

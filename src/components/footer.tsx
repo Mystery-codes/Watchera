@@ -1,9 +1,35 @@
 import Link from "next/link";
 
-const columns: { title: string; links: string[] }[] = [
-  { title: "Explore", links: ["Home", "TV Shows", "Movies", "New Releases", "My List"] },
-  { title: "Company", links: ["About", "Careers", "Press", "Contact"] },
-  { title: "Support", links: ["Help Center", "Account", "Ways to Watch", "Terms"] },
+const columns: { title: string; links: { label: string; href: string }[] }[] = [
+  {
+    title: "Explore",
+    links: [
+      { label: "Home", href: "/" },
+      { label: "TV Shows", href: "/popular-series" },
+      { label: "Movies", href: "/movies" },
+      { label: "New Releases", href: "/new-releases" },
+      { label: "My List", href: "/my-list" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About", href: "/about" },
+      { label: "Careers", href: "/careers" },
+      { label: "Press", href: "/press" },
+      { label: "Contact", href: "/contact" },
+    ],
+  },
+  {
+    title: "Support",
+    links: [
+      { label: "Help Center", href: "/help-center" },
+      { label: "Account", href: "/account" },
+      { label: "Ways to Watch", href: "/ways-to-watch" },
+      { label: "Terms", href: "/terms" },
+      { label: "Privacy", href: "/privacy" },
+    ],
+  },
 ];
 
 export function Footer() {
@@ -14,10 +40,10 @@ export function Footer() {
           <div key={col.title}>
             <h3 className="mb-3 text-sm font-semibold text-white">{col.title}</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              {col.links.map((l) => (
-                <li key={l}>
-                  <Link href="#" className="transition-colors hover:text-white">
-                    {l}
+              {col.links.map((link) => (
+                <li key={link.href}>
+                  <Link href={link.href} className="transition-colors hover:text-white">
+                    {link.label}
                   </Link>
                 </li>
               ))}

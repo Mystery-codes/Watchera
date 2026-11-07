@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Play, Plus, ThumbsUp, X, Download, Trash2 } from "lucide-react";
+import { Check, Play, Plus, ThumbsUp, X, Download, Trash2 } from "lucide-react";
 import type { Movie } from "@/lib/movies";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import {
   getOfflineVideoKey,
   type OfflineDownloadMeta,
 } from "@/lib/offline-downloads";
+import { isMovieInMyList, toggleMovieInMyList } from "@/lib/my-list";
 
 export function MovieModal({
   movie,
@@ -52,6 +53,7 @@ export function MovieModal({
   const [offlineBlob, setOfflineBlob] = useState<Blob | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const { items: queueItems, ready: queueReady, enqueue } = useDownloadQueue();
 
   const displayMovie = {
@@ -80,6 +82,14 @@ export function MovieModal({
     });
     return () => subscription.subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!movie) return;
+    const syncSavedState = () => setIsSaved(isMovieInMyList(movie));
+    syncSavedState();
+    window.addEventListener("watchera:my-list-changed", syncSavedState);
+    return () => window.removeEventListener("watchera:my-list-changed", syncSavedState);
+  }, [movie]);
 
   useEffect(() => {
     if (!movie || !playId) return;
@@ -345,8 +355,14 @@ export function MovieModal({
             <Button disabled={!streamEnabled && !offlineBlob}>
               <Play className="size-4 fill-white" /> Play
             </Button>
-            <Button variant="secondary" size="icon" aria-label="Add to list">
-              <Plus className="size-4" />
+            <Button
+              variant="secondary"
+              size="icon"
+              aria-label={isSaved ? "Remove from My List" : "Add to My List"}
+              title={isSaved ? "Remove from My List" : "Add to My List"}
+              onClick={() => setIsSaved(toggleMovieInMyList(movie))}
+            >
+              {isSaved ? <Check className="size-4" /> : <Plus className="size-4" />}
             </Button>
             <Button variant="secondary" size="icon" aria-label="Like">
               <ThumbsUp className="size-4" />

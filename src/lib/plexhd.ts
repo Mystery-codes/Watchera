@@ -68,6 +68,7 @@ function mapItem(item: RankingItem, index: number): Movie {
     banner: bannerUrl,
     subjectId: item.subjectId,
     detailPath: item.detailPath ?? item.subjectId,
+    releaseDate: item.releaseDate,
     subjectType,
   };
 }
