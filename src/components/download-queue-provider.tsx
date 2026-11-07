@@ -5,6 +5,7 @@ import { Download, RotateCcw, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   deleteOfflineQueueItem,
+  deleteDownloadedVideo,
   getDownloadedVideo,
   listOfflineQueue,
   saveDownloadedVideo,
@@ -22,6 +23,7 @@ type DownloadQueueContextValue = {
   ready: boolean;
   enqueue: (item: NewOfflineQueueItem) => Promise<void>;
   retry: (key: string) => Promise<void>;
+  cancel: (key: string) => Promise<void>;
   remove: (key: string) => Promise<void>;
 };
 
@@ -41,6 +43,8 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
   const itemsRef = useRef<OfflineQueueItem[]>([]);
   const processingRef = useRef(false);
   const addingKeysRef = useRef(new Set<string>());
+  const controllersRef = useRef(new Map<string, AbortController>());
+  const cancelledKeysRef = useRef(new Set<string>());
 
   function commitItem(item: OfflineQueueItem) {
     setItems((current) => {
@@ -88,6 +92,10 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
   }, []);
 
   async function processItem(item: OfflineQueueItem) {
+    const controller = new AbortController();
+    controllersRef.current.set(item.key, controller);
+    cancelledKeysRef.current.delete(item.key);
+
     const activeItem: OfflineQueueItem = {
       ...item,
       status: "downloading",
@@ -100,7 +108,7 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
       commitItem(activeItem);
 
       const url = `/api/play?detailPath=${encodeURIComponent(item.detailPath)}&type=${encodeURIComponent(String(item.type))}&sea=${encodeURIComponent(String(item.sea))}&eps=${encodeURIComponent(String(item.eps))}&stream=1`;
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) {
         const message = await response.text().catch(() => response.statusText);
         throw new Error(`Download failed: ${response.status} ${message}`);
@@ -117,6 +125,9 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (cancelledKeysRef.current.has(item.key)) {
+          throw new DOMException("Download cancelled", "AbortError");
+        }
         chunks.push(value);
         received += value.length;
         if (contentLength > 0) {
@@ -133,6 +144,10 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
         }
       }
 
+      if (cancelledKeysRef.current.has(item.key)) {
+        throw new DOMException("Download cancelled", "AbortError");
+      }
+
       await saveDownloadedVideo(
         {
           key: item.key,
@@ -145,10 +160,30 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
         new Blob(chunks as BlobPart[], { type: "video/mp4" })
       );
 
+      if (cancelledKeysRef.current.has(item.key)) {
+        throw new DOMException("Download cancelled", "AbortError");
+      }
+
       await saveOfflineQueueItem({ ...activeItem, status: "completed", progress: 100 });
+      if (cancelledKeysRef.current.has(item.key)) {
+        throw new DOMException("Download cancelled", "AbortError");
+      }
       commitItem({ ...activeItem, status: "completed", progress: 100 });
       window.dispatchEvent(new Event("watchera:downloads-changed"));
     } catch (error) {
+      if (cancelledKeysRef.current.has(item.key)) {
+        await Promise.allSettled([
+          deleteOfflineQueueItem(item.key),
+          deleteDownloadedVideo(item.key),
+        ]);
+        setItems((current) => {
+          const next = current.filter((entry) => entry.key !== item.key);
+          itemsRef.current = next;
+          return next;
+        });
+        return;
+      }
+
       const failedItem: OfflineQueueItem = {
         ...activeItem,
         status: "failed",
@@ -161,6 +196,9 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
         console.error("Could not save failed queue item:", saveError);
       }
       commitItem(failedItem);
+    } finally {
+      controllersRef.current.delete(item.key);
+      cancelledKeysRef.current.delete(item.key);
     }
   }
 
@@ -222,12 +260,30 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
     });
   }
 
+  async function cancel(key: string) {
+    const item = itemsRef.current.find((entry) => entry.key === key);
+    const controller = controllersRef.current.get(key);
+    if (!item || item.status !== "downloading" || !controller) return;
+
+    cancelledKeysRef.current.add(key);
+    controller.abort();
+    setItems((current) => {
+      const next = current.filter((entry) => entry.key !== key);
+      itemsRef.current = next;
+      return next;
+    });
+    await Promise.allSettled([
+      deleteOfflineQueueItem(key),
+      deleteDownloadedVideo(key),
+    ]);
+  }
+
   const activeCount = items.filter(
     (item) => item.status === "queued" || item.status === "downloading"
   ).length;
 
   return (
-    <DownloadQueueContext.Provider value={{ items, ready, enqueue, retry, remove }}>
+    <DownloadQueueContext.Provider value={{ items, ready, enqueue, retry, cancel, remove }}>
       {children}
       {items.length > 0 && (
         <aside className="fixed bottom-4 right-4 z-70 w-[min(24rem,calc(100vw-2rem))]" aria-live="polite">
@@ -278,11 +334,15 @@ export function DownloadQueueProvider({ children }: { children: React.ReactNode 
                         <Button size="icon" variant="ghost" onClick={() => void retry(item.key)} aria-label={`Retry ${item.title}`}>
                           <RotateCcw />
                         </Button>
-                      ) : item.status !== "downloading" ? (
+                      ) : item.status === "downloading" ? (
+                        <Button size="icon" variant="ghost" onClick={() => void cancel(item.key)} aria-label={`Cancel download of ${item.title}`} title="Cancel download">
+                          <X />
+                        </Button>
+                      ) : (
                         <Button size="icon" variant="ghost" onClick={() => void remove(item.key)} aria-label={`Remove ${item.title} from queue`}>
                           <Trash2 />
                         </Button>
-                      ) : null}
+                      )}
                     </div>
                   </li>
                 ))}
