@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Play, Plus, ThumbsUp } from "lucide-react";
 import type { Movie } from "@/lib/movies";
+import { getTitlePath } from "@/lib/seo";
 
 export function MovieCard({
   movie,
@@ -13,12 +15,18 @@ export function MovieCard({
   onOpen?: (m: Movie) => void;
   gridView?: boolean;
 }) {
-  const handleClick = () => onOpen?.(movie);
+  const href = getTitlePath(movie);
 
   return (
-    <button
+    <Link
+      href={href}
       data-aos="fade-up"
-      onClick={handleClick}
+      onClick={(event) => {
+        if (onOpen) {
+          event.preventDefault();
+          onOpen(movie);
+        }
+      }}
       className={`group relative overflow-hidden rounded-md transition-transform duration-300 hover:z-10 hover:scale-105 ${
         gridView ? "w-full" : "w-40 shrink-0 sm:w-48"
       }`}
@@ -51,6 +59,6 @@ export function MovieCard({
           </div>
         </div>
       </div>
-    </button>
+    </Link>
   );
 }

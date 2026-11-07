@@ -95,7 +95,7 @@ export async function fetchMovieDetails(
   idOrPath: string
 ): Promise<{ movie: Movie; source: string } | null> {
   try {
-    const res = await fetch(`${API_URL}/api/stream/movie-details?id=${idOrPath}`, {
+    const res = await fetch(`${API_URL}/api/stream/movie-details?id=${encodeURIComponent(idOrPath)}`, {
         headers: { "X-AUTH-KEY": API_KEY },
         next: { revalidate: 3600 },
         signal: AbortSignal.timeout(30000),
