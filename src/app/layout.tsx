@@ -14,14 +14,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const ownerName = "Divine Ifediorah";
+
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: {
     default: "Watchera | Movies and TV Shows",
     template: "%s | Watchera",
   },
-  description: "Discover movies, series, animation, and more on Watchera.",
+  description: "Discover movies, series, animation, and more on Watchera, created by Divine Ifediorah.",
   applicationName: "Watchera",
+  authors: [{ name: ownerName }],
+  creator: ownerName,
+  publisher: ownerName,
   keywords: ["movies", "TV shows", "series", "animation", "Nollywood", "K-drama"],
   referrer: "origin-when-cross-origin",
   robots: {
@@ -34,13 +39,13 @@ export const metadata: Metadata = {
     locale: "en_US",
     siteName: "Watchera",
     title: "Watchera | Movies and TV Shows",
-    description: "Discover movies, series, animation, and more on Watchera.",
+    description: "Discover movies, series, animation, and more on Watchera, created by Divine Ifediorah.",
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Watchera" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Watchera | Movies and TV Shows",
-    description: "Discover movies, series, animation, and more on Watchera.",
+    description: "Discover movies, series, animation, and more on Watchera, created by Divine Ifediorah.",
     images: ["/opengraph-image"],
   },
   manifest: "/manifest.json",
@@ -70,6 +75,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const websiteStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Watchera",
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+    creator: { "@type": "Person", name: ownerName },
+    publisher: { "@type": "Person", name: ownerName },
+  };
+
   return (
     <html
       lang="en"
@@ -87,6 +101,12 @@ export default function RootLayout({
                 });
               }
             `,
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteStructuredData).replace(/</g, "\\u003c"),
           }}
         />
       </body>
