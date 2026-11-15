@@ -3,11 +3,13 @@ import { CatalogPage } from "@/components/catalog-page";
 import { Footer } from "@/components/footer";
 import { Navbar } from "@/components/navbar";
 import { fetchRanking, RANKING_IDS } from "@/lib/plexhd";
+import { siteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "New Releases",
   description: "Browse recently released movies and series on Watchera.",
   alternates: { canonical: "/new-releases" },
+  openGraph: { url: `${siteUrl}/new-releases`, title: "New Releases", description: "Browse recently released movies and series on Watchera." },
 };
 
 export default async function NewReleasesPage() {

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AOSProvider } from "@/components/aos-provider";
 import { DownloadQueueProvider } from "@/components/download-queue-provider";
+import { siteUrl } from "@/lib/seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,19 +16,21 @@ const geistMono = Geist_Mono({
 });
 
 const ownerName = "Divine Ifediorah";
+const siteTitle = "Watchera | Discover Movies, TV Shows & Anime";
+const siteDescription = "Explore popular movies, TV series, anime, Nollywood films, and K-dramas. Find your next watch with Watchera.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "Watchera | Movies and TV Shows",
+    default: siteTitle,
     template: "%s | Watchera",
   },
-  description: "Discover movies, series, animation, and more on Watchera, created by Divine Ifediorah.",
+  description: siteDescription,
   applicationName: "Watchera",
   authors: [{ name: ownerName }],
   creator: ownerName,
   publisher: ownerName,
-  keywords: ["movies", "TV shows", "series", "animation", "Nollywood", "K-drama"],
+  keywords: ["Watchera", "movies", "TV shows", "series", "animation", "Nollywood", "K-drama"],
   referrer: "origin-when-cross-origin",
   robots: {
     index: true,
@@ -38,14 +41,14 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Watchera",
-    title: "Watchera | Movies and TV Shows",
-    description: "Discover movies, series, animation, and more on Watchera, created by Divine Ifediorah.",
+    title: siteTitle,
+    description: siteDescription,
     images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Watchera" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Watchera | Movies and TV Shows",
-    description: "Discover movies, series, animation, and more on Watchera, created by Divine Ifediorah.",
+    title: siteTitle,
+    description: siteDescription,
     images: ["/opengraph-image"],
   },
   manifest: "/manifest.json",
@@ -77,11 +80,32 @@ export default function RootLayout({
 }>) {
   const websiteStructuredData = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "Watchera",
-    url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
-    creator: { "@type": "Person", name: ownerName },
-    publisher: { "@type": "Person", name: ownerName },
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        name: "Watchera",
+        url: siteUrl,
+        description: "A movie and television discovery platform for browsing movies, series, and animation.",
+        logo: `${siteUrl}/logo.png`,
+        founder: { "@id": `${siteUrl}/founder/divine-ifediorah#person` },
+      },
+      {
+        "@type": "Person",
+        "@id": `${siteUrl}/founder/divine-ifediorah#person`,
+        name: ownerName,
+        jobTitle: "Founder of Watchera",
+        founderOf: { "@id": `${siteUrl}/#organization` },
+        url: `${siteUrl}/founder/divine-ifediorah`,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        name: "Watchera",
+        url: siteUrl,
+        publisher: { "@id": `${siteUrl}/#organization` },
+      },
+    ],
   };
 
   return (

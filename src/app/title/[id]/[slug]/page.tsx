@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { Navbar } from "@/components/navbar";
 import { fetchMovieDetails } from "@/lib/plexhd";
-import { getTitlePath } from "@/lib/seo";
+import { getTitlePath, siteUrl } from "@/lib/seo";
 import { TitlePageActions } from "./title-page-actions";
 
 type TitlePageProps = {
@@ -33,6 +33,7 @@ export async function generateMetadata({ params }: TitlePageProps): Promise<Meta
     alternates: { canonical: getTitlePath(movie) },
     openGraph: {
       type: "website",
+      url: new URL(getTitlePath(movie), siteUrl).toString(),
       title: movie.title,
       description,
       images: movie.poster ? [movie.poster] : undefined,

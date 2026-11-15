@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import { Play, Info } from "lucide-react";
 import type { Movie } from "@/lib/movies";
@@ -9,24 +8,11 @@ import { Button } from "@/components/ui/button";
 export function Hero({
   movie: initialMovie,
   onOpen,
-  allMovies,
 }: {
   movie: Movie;
   onOpen: (m: Movie) => void;
-  allMovies: Movie[];
 }) {
-  const [movie, setMovie] = useState(initialMovie);
-
-  useEffect(() => {
-    if (!allMovies.length) return;
-    const interval = setInterval(() => {
-      const candidates = allMovies.filter((m) => m.id !== movie.id);
-      const pool = candidates.length ? candidates : allMovies;
-      const next = pool[Math.floor(Math.random() * pool.length)];
-      setMovie(next);
-    }, 6000);
-    return () => clearInterval(interval);
-  }, [allMovies, movie.id]);
+  const movie = initialMovie;
 
   return (
     <section className="relative h-[85vh] min-h-[520px] w-full">
@@ -45,7 +31,8 @@ export function Hero({
         data-aos="fade-up"
         className="absolute bottom-[12%] left-0 max-w-xl px-4 sm:px-8"
       >
-        <h1 className="text-4xl font-extrabold sm:text-6xl">{movie.title}</h1>
+        <h1 className="text-4xl font-extrabold sm:text-6xl">Discover movies and shows on Watchera</h1>
+        <h2 className="mt-3 text-xl font-semibold text-zinc-100 sm:text-2xl">Featured: {movie.title}</h2>
         <p className="mt-4 line-clamp-3 max-w-md text-sm text-zinc-200 sm:text-base">
           {movie.description}
         </p>

@@ -18,7 +18,7 @@ interface BeforeInstallPromptEvent extends Event {
 const links: { label: string; href: string }[] = [
   { label: "Home", href: "/" },
   { label: "TV Series", href: "/popular-series" },
-  { label: "Movies", href: "/search?q=Movies" },
+  { label: "Movies", href: "/movies" },
   { label: "Animation", href: "/animation" },
   { label: "Downloads", href: "/downloads" },
   { label: "Subscription", href: "#" },

@@ -1,5 +1,7 @@
 import type { Movie } from "@/lib/movies";
 
+export const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://watchera.net").replace(/\/+$/, "");
+
 function slugify(value: string): string {
   return value
     .normalize("NFKD")

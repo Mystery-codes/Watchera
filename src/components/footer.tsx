@@ -52,7 +52,7 @@ export function Footer() {
         ))}
       </div>
       <p className="mx-auto mt-8 max-w-7xl text-xs text-muted-foreground">
-        &copy; {new Date().getFullYear()} Watchera. Unlimited movies, TV shows, and more.
+        &copy; {new Date().getFullYear()} Watchera. Founded by <Link className="underline hover:text-white" href="/founder/divine-ifediorah">Divine Ifediorah</Link>. Movies, TV shows, and more.
       </p>
     </footer>
   );

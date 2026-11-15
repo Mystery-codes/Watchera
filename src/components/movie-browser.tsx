@@ -16,11 +16,9 @@ import {
 export function MovieBrowser({
   rows,
   heroMovie,
-  allMovies,
 }: {
   rows: { title: string; movies: Movie[] }[];
   heroMovie: Movie;
-  allMovies: Movie[];
 }) {
   const [selected, setSelected] = useState<Movie | null>(null);
   const [isGridView, setIsGridView] = useState(false);
@@ -46,7 +44,7 @@ export function MovieBrowser({
 
   return (
     <>
-      <Hero movie={heroMovie} onOpen={setSelected} allMovies={allMovies} />
+      <Hero movie={heroMovie} onOpen={setSelected} />
 
       <div className="relative z-10 -mt-16 space-y-8 pb-8">
         {rows.map((row) => (

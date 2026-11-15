@@ -2,10 +2,18 @@ import { Navbar } from "@/components/navbar";
 import { MovieBrowser } from "@/components/movie-browser";
 import { Footer } from "@/components/footer";
 import { fetchRanking, RANKING_IDS } from "@/lib/plexhd";
+import { siteUrl } from "@/lib/seo";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
+  title: "Watchera | Discover Movies, TV Shows & Anime",
+  description: "Discover popular movies, TV shows, anime, Nollywood films, and K-dramas on Watchera. Find your next watch.",
   alternates: { canonical: "/" },
+  openGraph: {
+    url: `${siteUrl}/`,
+    title: "Watchera | Discover Movies, TV Shows & Anime",
+    description: "Discover popular movies, TV shows, anime, Nollywood films, and K-dramas on Watchera. Find your next watch.",
+  },
 };
 
 export default async function Home() {
@@ -57,15 +65,13 @@ export default async function Home() {
 
   const fetched = await Promise.all(
     sections.map(async (section) => {
-      const movies = await fetchRanking(section.id, 12);
+      const movies = await fetchRanking(section.id, 8);
       return {
         title: section.title,
         movies,
       };
     })
   );
-
-  const allMovies = fetched.flatMap((row) => row.movies);
 
   const rows = fetched
     .filter((row) => row.movies.length > 0)
@@ -77,7 +83,7 @@ export default async function Home() {
   return (
     <main className="min-h-full bg-background">
       <Navbar />
-      <MovieBrowser rows={rows} heroMovie={heroMovie} allMovies={allMovies} />
+      <MovieBrowser rows={rows} heroMovie={heroMovie} />
       <Footer />
     </main>
   );
