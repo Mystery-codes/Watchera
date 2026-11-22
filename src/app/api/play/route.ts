@@ -129,10 +129,16 @@ export async function GET(request: NextRequest) {
         const upstreamType = upstream.headers.get("content-type")?.toLowerCase() ?? "";
         const inferredType = mediaTypeForUrl(url);
         if (!upstream.ok && upstream.status !== 206) {
+          const errorBody = await upstream.clone().text().catch(() => "");
+          const safeError = errorBody
+            .replace(/https?:\/\/\S+/gi, "[url]")
+            .replace(/([?&](?:token|key|signature|policy)=)[^&\s]+/gi, "$1[redacted]")
+            .slice(0, 500);
           console.warn("[/api/play] Upstream stream rejected", {
             host,
             status: upstream.status,
             contentType: upstreamType,
+            error: safeError || undefined,
           });
           await upstream.body?.cancel();
           continue;
