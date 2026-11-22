@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Watchera",
+    "slug": "watchera",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#101111",
+    "splash": { "backgroundColor": "#101111" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "net.watchera.app" },
+    "android": { "package": "net.watchera.app", "edgeToEdgeEnabled": true },
+    "plugins": ["expo-video"]
+  }
+}
