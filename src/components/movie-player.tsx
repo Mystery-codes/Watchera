@@ -2,11 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Subtitles } from "lucide-react";
+import Hls from "hls.js";
 import { cn } from "@/lib/utils";
 
 type Caption = { id: string; lan: string; lanName: string; url: string };
 
 type VttCue = { start: number; end: number; text: string };
+
+function isHlsUrl(url: string): boolean {
+  try {
+    return new URL(url, "https://watchera.invalid").pathname.toLowerCase().endsWith(".m3u8");
+  } catch {
+    return false;
+  }
+}
 
 function parseVtt(text: string): VttCue[] {
   const lines = text.split(/\r\n|\r|\n/);
@@ -34,7 +43,7 @@ function parseVtt(text: string): VttCue[] {
     const textParts: string[] = [];
     while (i < lines.length) {
       const tLine = lines[i];
-      if (tLine.trim() === "") break;
+     
       textParts.push(tLine);
       i++;
     }
@@ -74,6 +83,7 @@ export function MoviePlayer({
   const videoRef = useRef<HTMLVideoElement>(null);
   const signInPromptedRef = useRef(false);
   const autoSelectedCaptionRef = useRef(false);
+  const directUrlsRef = useRef<string[]>([]);
   const [videoSrc, setVideoSrc] = useState<string>("");
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [selectedCaptionId, setSelectedCaptionId] = useState<string | null>(null);
@@ -118,10 +128,11 @@ export function MoviePlayer({
     return () => {
       cancelled = true;
     };
-  }, [selectedCaptionId, captions]);
+  }, [selectedCaptionId, captions, detailPath, eps, sea, type]);
 
   useEffect(() => {
     if (offlineBlob) {
+      directUrlsRef.current = [];
       const url = URL.createObjectURL(offlineBlob);
       setVideoSrc(url);
       setLoading(false);
@@ -141,15 +152,32 @@ export function MoviePlayer({
 
         if (!res.ok) {
           const errText = await res.text().catch(() => "");
-          throw new Error(`/api/play ${res.status}: ${errText || res.statusText}`);
+          let message = errText;
+          try {
+            const errData = JSON.parse(errText);
+            message = errData.error || errText;
+          } catch {}
+          throw new Error(message || res.statusText);
         }
 
         const data = await res.json();
         console.log("/api/play data:", data);
 
-        if (!cancelled && data.streamUrl) {
+        if (!cancelled && (data.directUrls?.length || data.directUrl || data.streamUrl)) {
           if (data.captions) setCaptions(data.captions);
-          setVideoSrc(data.streamUrl);
+          const directUrls = (data.directUrls?.length ? data.directUrls : [data.directUrl])
+            .filter(Boolean);
+          const proxyUrl = data.streamUrl
+            ? new URL(data.streamUrl, window.location.origin).href
+            : null;
+          // Regular media files are served through our same-origin proxy first so
+          // range requests and the upstream Content-Type reach the browser cleanly.
+          // HLS manifests stay direct because their segment URLs belong to the host.
+          const useProxyFirst = Boolean(proxyUrl && !directUrls.some(isHlsUrl));
+          directUrlsRef.current = useProxyFirst && proxyUrl
+            ? [proxyUrl]
+            : directUrls;
+          setVideoSrc(directUrlsRef.current[0]);
         }
       } catch (err) {
         console.error("Stream fetch error:", err);
@@ -165,6 +193,45 @@ export function MoviePlayer({
       cancelled = true;
     };
   }, [apiUrl, offlineBlob]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoSrc || !isHlsUrl(videoSrc)) return;
+
+    let cancelled = false;
+    let hls: Hls | null = null;
+    const failover = () => {
+      if (cancelled) return;
+      const currentIndex = directUrlsRef.current.indexOf(videoSrc);
+      const nextUrl = currentIndex >= 0 ? directUrlsRef.current[currentIndex + 1] : undefined;
+      if (nextUrl) {
+        setError(null);
+        setVideoSrc(nextUrl);
+      } else {
+        setError("Playback failed: The HLS stream could not be loaded");
+      }
+    };
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = videoSrc;
+    } else if (Hls.isSupported()) {
+      hls = new Hls();
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) failover();
+      });
+      hls.loadSource(videoSrc);
+      hls.attachMedia(video);
+    } else {
+      failover();
+    }
+
+    return () => {
+      cancelled = true;
+      hls?.destroy();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [videoSrc]);
 
   useEffect(() => {
     signInPromptedRef.current = false;
@@ -244,8 +311,7 @@ export function MoviePlayer({
         autoPlay
         playsInline
         className="aspect-video w-full bg-black"
-        src={videoSrc}
-        crossOrigin="anonymous"
+        src={videoSrc && !isHlsUrl(videoSrc) ? videoSrc : undefined}
         onTimeUpdate={(event) => {
           setCurrentTime(event.currentTarget.currentTime);
           requireSignIn(event.currentTarget);
@@ -258,7 +324,34 @@ export function MoviePlayer({
         onError={(e) => {
           const video = e.currentTarget;
           console.error("Video error:", video.error);
-          setError(`Playback failed: ${video.error?.message || "Unknown error"}`);
+
+          const currentIndex = directUrlsRef.current.findIndex((url) => {
+            try {
+              return new URL(url, window.location.origin).href === new URL(videoSrc, window.location.origin).href;
+            } catch {
+              return url === videoSrc;
+            }
+          });
+          const nextUrl = currentIndex >= 0
+            ? directUrlsRef.current[currentIndex + 1]
+            : undefined;
+
+          if (nextUrl) {
+            console.warn("Direct stream quality failed; trying next quality");
+            setError(null);
+            setVideoSrc(nextUrl);
+            return;
+          }
+
+          const code = video.error?.code;
+          const detail = code === MediaError.MEDIA_ERR_NETWORK
+            ? "The media host could not be reached or blocked the request"
+            : code === MediaError.MEDIA_ERR_DECODE
+              ? "The media format could not be decoded by this browser"
+              : code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED
+                ? "The media URL or format is not supported"
+                : "The browser could not open the media stream";
+          setError(`Playback failed: ${detail}`);
         }}
       />
       {activeCue && selectedCaptionId !== null && (

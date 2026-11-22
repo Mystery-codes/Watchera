@@ -62,7 +62,7 @@ export function MovieModal({
   };
 
   const isSeries = Number(displayMovie.subjectType ?? movie?.subjectType ?? 2) === 2;
-  const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED === "true";
+  const streamEnabled = process.env.NEXT_PUBLIC_STREAM_ENABLED !== "false";
 
   const playId = displayMovie.detailPath ?? movie?.detailPath ?? String(displayMovie.id ?? movie?.id);
   const offlineKey = getOfflineVideoKey({

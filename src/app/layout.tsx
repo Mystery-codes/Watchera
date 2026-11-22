@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AOSProvider } from "@/components/aos-provider";
@@ -52,7 +52,6 @@ export const metadata: Metadata = {
     images: ["/opengraph-image"],
   },
   manifest: "/manifest.json",
-  themeColor: "#e50914",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -71,6 +70,16 @@ export const metadata: Metadata = {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
   },
+};
+
+export const viewport: Viewport = {
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  width: "device-width",
+  height: "device-height",
+  themeColor: "#e50914",
 };
 
 export default function RootLayout({

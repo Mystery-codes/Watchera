@@ -157,20 +157,48 @@ export async function fetchVidSource(
       )}&sea=${season}&eps=${episode}`,
       {
         headers: { "X-AUTH-KEY": API_KEY },
-        next: { revalidate: 600 },
+        cache: "no-store",
         signal: AbortSignal.timeout(30000),
       }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("[plexhd] vid-source request failed", {
+        status: res.status,
+        detailPath,
+        isSeries,
+        season,
+        episode,
+      });
+      return null;
+    }
     const data = await res.json();
-    const streams: StreamSource[] = (data.stream ?? []).map(
-      (s: { id: string; quality: number; url: string }) => ({
-        id: s.id,
-        quality: s.quality,
-        url: s.url,
-      })
-    );
-    const captions = (data.caption ?? []).map(
+    const rawStreams = data.stream ?? data.streams ?? data.sources ?? data.urls ?? [];
+    const streamList = Array.isArray(rawStreams)
+      ? rawStreams
+      : rawStreams && typeof rawStreams === "object"
+        ? Object.values(rawStreams)
+        : [];
+    const streams: StreamSource[] = streamList
+      .map((s: { id?: unknown; quality?: unknown; label?: unknown; resolution?: unknown; url?: unknown; link?: unknown; src?: unknown }) => ({
+        id: String(s?.id ?? s?.quality ?? "stream"),
+        quality: Number(s?.quality ?? s?.label ?? s?.resolution ?? 0) || 0,
+        url: String(s?.url ?? s?.link ?? s?.src ?? ""),
+      }))
+      .filter((s: StreamSource) => /^https?:\/\//i.test(s.url));
+    if (streams.length === 0) {
+      console.warn("[plexhd] vid-source returned no usable stream URLs", {
+        fields: Object.keys(data ?? {}),
+        streamFieldType: Array.isArray(rawStreams) ? "array" : typeof rawStreams,
+        streamFieldCount: streamList.length,
+        firstStreamFields:
+          streamList[0] && typeof streamList[0] === "object"
+            ? Object.keys(streamList[0])
+            : undefined,
+      });
+    }
+    const rawCaptions = data.caption ?? data.captions ?? data.subtitles ?? [];
+    const captionList = Array.isArray(rawCaptions) ? rawCaptions : [];
+    const captions = captionList.map(
       (c: { id: string; lan: string; lanName: string; url: string }) => ({
         id: c.id,
         lan: c.lan,
@@ -179,7 +207,14 @@ export async function fetchVidSource(
       })
     );
     return { streams, captions };
-  } catch {
+  } catch (error) {
+    console.error("[plexhd] vid-source request errored", {
+      detailPath,
+      isSeries,
+      season,
+      episode,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
