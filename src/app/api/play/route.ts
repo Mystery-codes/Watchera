@@ -156,16 +156,16 @@ export async function GET(request: NextRequest) {
           if (!first.done && first.value) {
             sniffedType = sniffMediaType(first.value);
             let pendingFirstChunk = true;
-            body = new ReadableStream<Uint8Array>({
+            body = new ReadableStream({
               async pull(controller) {
                 if (pendingFirstChunk) {
                   pendingFirstChunk = false;
-                  controller.enqueue(first.value!);
+                  controller.enqueue(Uint8Array.from(first.value!));
                   return;
                 }
                 const next = await reader.read();
                 if (next.done) controller.close();
-                else controller.enqueue(next.value);
+                else controller.enqueue(Uint8Array.from(next.value));
               },
               cancel(reason) {
                 return reader.cancel(reason);
