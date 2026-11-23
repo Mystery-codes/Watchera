@@ -168,12 +168,13 @@ export function MoviePlayer({
           const proxyUrl = data.streamUrl
             ? new URL(data.streamUrl, window.location.origin).href
             : null;
-          // Regular media files are served through our same-origin proxy first so
-          // range requests and the upstream Content-Type reach the browser cleanly.
-          // HLS manifests stay direct because their segment URLs belong to the host.
-          const useProxyFirst = Boolean(proxyUrl && !directUrls.some(isHlsUrl));
-          directUrlsRef.current = useProxyFirst && proxyUrl
-            ? [proxyUrl, ...directUrls]
+          // Try signed provider URLs directly first. The provider's proxy can be
+          // unavailable from a deployed server; keep it as a fallback for hosts
+          // that reject browser media requests. HLS stays direct because its
+          // segment URLs belong to the provider host.
+          const useProxyFallback = Boolean(proxyUrl && !directUrls.some(isHlsUrl));
+          directUrlsRef.current = useProxyFallback && proxyUrl
+            ? [...directUrls, proxyUrl]
             : directUrls;
           setVideoSrc(directUrlsRef.current[0]);
         }
