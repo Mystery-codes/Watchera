@@ -1,4 +1,4 @@
-const CACHE_NAME = "watchera-v2";
+const CACHE_NAME = "watchera-v3";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -16,7 +16,9 @@ const NO_CACHE_PATTERNS = [
 
 function shouldCache(request) {
   if (request.method !== "GET") return false;
-  const pathname = new URL(request.url).pathname;
+  const requestUrl = new URL(request.url);
+  if (requestUrl.origin !== self.location.origin) return false;
+  const pathname = requestUrl.pathname;
   if (pathname.startsWith("/_next/")) return false;
   const url = request.url;
   return !NO_CACHE_PATTERNS.some(pattern => pattern.test(url));

@@ -173,7 +173,7 @@ export function MoviePlayer({
           // HLS manifests stay direct because their segment URLs belong to the host.
           const useProxyFirst = Boolean(proxyUrl && !directUrls.some(isHlsUrl));
           directUrlsRef.current = useProxyFirst && proxyUrl
-            ? [proxyUrl]
+            ? [proxyUrl, ...directUrls]
             : directUrls;
           setVideoSrc(directUrlsRef.current[0]);
         }
