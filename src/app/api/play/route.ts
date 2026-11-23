@@ -22,6 +22,23 @@ function sniffMediaType(bytes: Uint8Array): string | null {
   return null;
 }
 
+function sameCaptionResource(left: string, right: string): boolean {
+  try {
+    const a = new URL(left);
+    const b = new URL(right);
+    return a.origin === b.origin && a.pathname === b.pathname;
+  } catch {
+    return false;
+  }
+}
+
+function toWebVtt(text: string): string {
+  const normalized = text.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n").trim();
+  if (/^WEBVTT(?:\s|$)/i.test(normalized)) return `${normalized}\n`;
+  const cues = normalized.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, "$1.$2");
+  return `WEBVTT\n\n${cues}\n`;
+}
+
 export async function GET(request: NextRequest) {
   const detailPath = request.nextUrl.searchParams.get("detailPath");
   if (!detailPath) {
@@ -43,18 +60,21 @@ export async function GET(request: NextRequest) {
     if (!captionUrl) {
       return NextResponse.json({ error: "Missing caption url" }, { status: 400 });
     }
-    if (!source?.captions.some((caption) => caption.url === captionUrl)) {
+    const caption = source?.captions.find((item) => sameCaptionResource(item.url, captionUrl));
+    if (!caption) {
       return NextResponse.json({ error: "Caption not found" }, { status: 404 });
     }
     try {
-      const upstream = await fetch(captionUrl, {
+      // Caption URLs are signed and can change between the initial source lookup
+      // and this request. Match the trusted resource path, then use its fresh URL.
+      const upstream = await fetch(caption.url, {
         signal: request.signal,
         cache: "no-store",
       });
       if (!upstream.ok) {
         return NextResponse.json({ error: "Could not fetch caption" }, { status: upstream.status });
       }
-      const text = await upstream.text();
+      const text = toWebVtt(await upstream.text());
       return new Response(text, {
         status: 200,
         headers: {

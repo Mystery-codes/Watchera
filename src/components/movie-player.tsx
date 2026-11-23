@@ -41,10 +41,8 @@ function parseVtt(text: string): VttCue[] {
     i++;
 
     const textParts: string[] = [];
-    while (i < lines.length) {
-      const tLine = lines[i];
-     
-      textParts.push(tLine);
+    while (i < lines.length && lines[i].trim() !== "") {
+      textParts.push(lines[i]);
       i++;
     }
     cues.push({ start, end, text: textParts.join(" ") });
